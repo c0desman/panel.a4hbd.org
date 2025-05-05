@@ -1,13 +1,15 @@
 // app/page.js
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation"; // ✅ App Router version
+
 export default function HomePage() {
-  return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Welcome to the Dashboard</h1>
-      <p className="text-muted-foreground">
-        This is your main dashboard page. You can navigate using the sidebar menu.
-      </p>
-    </div>
-  );
+  const router = useRouter();
+
+  useEffect(() => {
+    router.push("/auth/login"); // ✅ push inside useEffect
+  }, [router]);
+
+  return null; // no need to render anything
 }

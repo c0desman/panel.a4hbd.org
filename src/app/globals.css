@@ -120,3 +120,21 @@
     @apply bg-background text-foreground;
   }
 }
+
+:root {
+  --font-size-base: 1rem;
+  --font-size-sm: 0.875rem;
+  --font-size-lg: 1.125rem;
+}
+
+.text-base {
+  font-size: var(--font-size-base);
+}
+
+.text-sm {
+  font-size: var(--font-size-sm);
+}
+
+.text-lg {
+  font-size: var(--font-size-lg);
+}

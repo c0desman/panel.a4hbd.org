@@ -7,17 +7,21 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   const handleLogin = (e) => {
     e.preventDefault();
     setLoading(true);
-    // Placeholder for backend API call
+
+    // Simulate login and redirect
     setTimeout(() => {
       setLoading(false);
       alert("Logged in (dummy)");
+      router.push("/dashboard"); // ✅ This will route to app/dashboard/page.jsx
     }, 1500);
   };
 
