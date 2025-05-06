@@ -1,4 +1,4 @@
-// FILE: src/app/(auth)/register/page.jsx
+// FILE: src/app/auth/register/page.jsx
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -30,24 +30,24 @@ export default function RegisterPage() {
         <form onSubmit={handleRegister}>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="name">Name</Label>
+              <Label className='mb-2' htmlFor="name">Name</Label>
               <Input id="name" type="text" placeholder="John Doe" required />
             </div>
             <div>
-              <Label htmlFor="email">Email</Label>
+              <Label className='mb-2' htmlFor="email">Email</Label>
               <Input id="email" type="email" placeholder="you@example.com" required />
             </div>
             <div>
-              <Label htmlFor="password">Password</Label>
+              <Label className='mb-2' htmlFor="password">Password</Label>
               <Input id="password" type="password" placeholder="••••••••" required />
             </div>
           </CardContent>
-          <CardFooter className="flex flex-col items-center gap-2">
+          <CardFooter className="flex flex-col items-center gap-2 mt-3">
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Registering..." : "Register"}
             </Button>
             <div className="text-sm">
-              Already have an account? <Link href="/login" className="text-blue-600">Login</Link>
+              Already have an account? <Link href="/auth/login" className="text-blue-600">Login</Link>
             </div>
           </CardFooter>
         </form>

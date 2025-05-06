@@ -24,11 +24,11 @@ export default function ResetPasswordRequestPage() {
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="email">Email</Label>
+              <Label className='mb-2' htmlFor="email">Email</Label>
               <Input id="email" type="email" placeholder="you@example.com" required />
             </div>
           </CardContent>
-          <CardFooter className="flex flex-col gap-2">
+          <CardFooter className="flex flex-col gap-2 mt-3">
             <Button type="submit" className="w-full">
               Send Reset Link
             </Button>

@@ -138,3 +138,7 @@
 .text-lg {
   font-size: var(--font-size-lg);
 }
+
+Button, Link {
+  @apply cursor-pointer;
+}

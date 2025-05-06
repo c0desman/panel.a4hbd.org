@@ -34,23 +34,23 @@ export default function LoginPage() {
         <form onSubmit={handleLogin}>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="email">Email</Label>
+              <Label className='mb-2' htmlFor="email">Email</Label>
               <Input id="email" type="email" placeholder="you@example.com" required />
             </div>
             <div>
-              <Label htmlFor="password">Password</Label>
+              <Label className='mb-2' htmlFor="password">Password</Label>
               <Input id="password" type="password" placeholder="••••••••" required />
             </div>
           </CardContent>
-          <CardFooter className="flex flex-col items-center gap-2">
+          <CardFooter className="flex flex-col items-center gap-2 mt-3">
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Logging in..." : "Login"}
             </Button>
             <div className="text-sm">
-              Don’t have an account? <Link href="/register" className="text-blue-600">Register</Link>
+              Don’t have an account? <Link href="/auth/register" className="text-blue-600">Register</Link>
             </div>
             <div className="text-sm">
-              <Link href="/reset-password-request" className="text-blue-600">Forgot password?</Link>
+              <Link href="/auth/reset-password" className="text-blue-600">Forgot password?</Link>
             </div>
           </CardFooter>
         </form>

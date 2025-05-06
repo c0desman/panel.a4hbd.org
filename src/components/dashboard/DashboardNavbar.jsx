@@ -111,10 +111,10 @@ export default function DashboardNavbar() {
           <DropdownMenuContent align="end" className="w-48 shadow-xl">
             <DropdownMenuLabel>My Account</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Profile</DropdownMenuItem>
-            <DropdownMenuItem>Settings</DropdownMenuItem>
+            <DropdownMenuItem><Link href="/profile">Profile</Link></DropdownMenuItem>
+            <DropdownMenuItem><Link href="/settings">Settings</Link></DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Logout</DropdownMenuItem>
+            <DropdownMenuItem><Link href="/auth/logout">Logout</Link></DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
