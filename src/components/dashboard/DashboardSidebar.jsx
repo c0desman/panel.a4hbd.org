@@ -24,19 +24,27 @@ const menuItems = [
     path: "/dashboard",
   },
   {
-    label: "Profile",
+    label: "Users",
     icon: User,
     submenu: [
-      { label: "View Profile", icon: User, path: "/dashboard/profile" },
-      { label: "Edit Profile", icon: User, path: "/dashboard/profile/edit" },
+      { label: "Users", icon: User, path: "/dashboard/users" },
+      { label: "My Profile", icon: User, path: "/dashboard/profile" },
     ],
   },
   {
-    label: "Settings",
+    label: "Stories and Update",
     icon: Settings,
     submenu: [
-      { label: "General", icon: Settings, path: "/dashboard/settings/general" },
-      { label: "Security", icon: Settings, path: "/dashboard/settings/security" },
+      { label: "Stories/Update", icon: Settings, path: "/dashboard/settings/general" },
+      { label: "Category", icon: Settings, path: "/dashboard/settings/security" },
+    ],
+  },
+  {
+    label: "Projects",
+    icon: Settings,
+    submenu: [
+      { label: "Projects", icon: Settings, path: "/dashboard/settings/general" },
+      { label: "Project Type", icon: Settings, path: "/dashboard/settings/security" },
     ],
   },
   {
