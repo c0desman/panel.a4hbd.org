@@ -6,7 +6,14 @@ import { useSidebar } from "@/context/SidebarContext";
 import {
   LayoutDashboard,
   User,
-  Settings,
+  UsersRound,
+  LibraryBig,
+  PanelTop,
+  Layers,
+  ChartBarStacked,
+  NotepadText,
+  Presentation,
+  Shapes,
   LogOut,
   ChevronDown,
   ChevronRight,
@@ -25,26 +32,43 @@ const menuItems = [
   },
   {
     label: "Users",
-    icon: User,
+    icon: UsersRound,
     submenu: [
-      { label: "Users", icon: User, path: "/dashboard/users" },
+      { label: "Users", icon: UsersRound, path: "/dashboard/users" },
       { label: "My Profile", icon: User, path: "/dashboard/profile" },
     ],
   },
   {
     label: "Stories and Update",
-    icon: Settings,
+    icon: LibraryBig,
     submenu: [
-      { label: "Stories/Update", icon: Settings, path: "/dashboard/settings/general" },
-      { label: "Category", icon: Settings, path: "/dashboard/settings/security" },
+      { label: "Stories/Update", icon: LibraryBig, path: "/dashboard/stories-list" },
+      { label: "Category", icon: ChartBarStacked, path: "/dashboard/categories-list" },
     ],
   },
   {
     label: "Projects",
-    icon: Settings,
+    icon: Presentation,
     submenu: [
-      { label: "Projects", icon: Settings, path: "/dashboard/settings/general" },
-      { label: "Project Type", icon: Settings, path: "/dashboard/settings/security" },
+      { label: "Projects", icon: Presentation, path: "/dashboard/settings/general" },
+      { label: "Initiatives", icon: NotepadText, path: "/dashboard/settings/general" },
+      { label: "Project Type", icon: Shapes, path: "/dashboard/settings/security" },
+    ],
+  },
+  {
+    label: "Page Content",
+    icon: Layers,
+    submenu: [
+      { label: "Home", icon: PanelTop, path: "/dashboard/settings/general" },
+      { label: "About Us", icon: PanelTop, path: "/dashboard/settings/security" },
+      { label: "Chairman's Message", icon: PanelTop, path: "/dashboard/settings/security" },
+      { label: "Advisor's Message", icon: PanelTop, path: "/dashboard/settings/security" },
+      { label: "How We Work", icon: PanelTop, path: "/dashboard/settings/security" },
+      { label: "Our Partners", icon: PanelTop, path: "/dashboard/settings/security" },
+      { label: "Our Works/Projects Page", icon: PanelTop, path: "/dashboard/settings/security" },
+      { label: "Our Stories", icon: PanelTop, path: "/dashboard/settings/security" },
+      { label: "Contact Us", icon: PanelTop, path: "/dashboard/settings/security" },
+      { label: "Collaboration Message", icon: PanelTop, path: "/dashboard/settings/security" },
     ],
   },
   {
@@ -149,7 +173,7 @@ export default function DashboardSidebar() {
                           href={sub.path}
                           key={sub.label}
                           className={cn(
-                            "h-10 flex items-center gap-3 px-3 rounded-lg text-sm hover:bg-primary/10",
+                            "h-10 flex items-center gap-3 px-3 my-2 py-1 rounded-lg text-sm hover:bg-primary/10",
                             isActive(sub.path) && "bg-primary/10 text-primary"
                           )}
                         >
