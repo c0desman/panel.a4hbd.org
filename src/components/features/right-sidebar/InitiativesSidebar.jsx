@@ -7,22 +7,24 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export default function CategorySidebar({ open, category, onClose, onCategoryUpdate, onCategoryDelete }) {
+export default function InitiativesSidebar({ open, initiative, onClose, onInitiativeUpdate, onInitiativeDelete }) {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
+  const [description, setDescription] = useState("");
   const [image, setImage] = useState("");
   const [previewImage, setPreviewImage] = useState("");
 
   useEffect(() => {
-    if (category) {
-      setName(category.name);
-      setSlug(category.slug);
-      setImage(category.image);
-      setPreviewImage(category.image);
+    if (initiative) {
+      setName(initiative.name);
+      setSlug(initiative.slug);
+      setDescription(initiative.description);
+      setImage(initiative.image);
+      setPreviewImage(initiative.image);
     }
-  }, [category]);
+  }, [initiative]);
 
-  if (!open || !category) return null;
+  if (!open || !initiative) return null;
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -34,13 +36,18 @@ export default function CategorySidebar({ open, category, onClose, onCategoryUpd
   };
 
   const handleUpdate = () => {
-    onCategoryUpdate({ ...category, name, slug, image });
+    onInitiativeUpdate({ ...initiative, name, slug, description, image });
+  };
+
+  const handleDelete = () => {
+    onInitiativeDelete(initiative.id);
+    onClose(); // Close the sidebar after deleting
   };
 
   return (
     <div className="fixed inset-y-0 right-0 w-full sm:max-w-md bg-white border-l shadow-xl z-50 overflow-auto">
       <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-100">
-        <h2 className="text-lg font-semibold">Edit Category</h2>
+        <h2 className="text-lg font-semibold">Edit Initiative</h2>
         <Button variant="ghost" size="icon" onClick={onClose}>
           <X />
         </Button>
@@ -66,6 +73,17 @@ export default function CategorySidebar({ open, category, onClose, onCategoryUpd
         <div className="space-y-1">
           <Label htmlFor="slug">Slug</Label>
           <Input id="slug" value={slug} onChange={(e) => setSlug(e.target.value)} />
+        </div>
+
+        {/* Description */}
+        <div className="space-y-1">
+          <Label htmlFor="description">Description</Label>
+          <Input
+            id="description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Enter a description for the initiative"
+          />
         </div>
 
         {/* Buttons */}

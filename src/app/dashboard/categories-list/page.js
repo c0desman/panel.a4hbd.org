@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import Image from "next/image";
 import CategorySidebar from "@/components/features/right-sidebar/CategorySidebar";
@@ -26,6 +26,7 @@ const initialCategories = [
     slug: "clothing",
     image: "https://via.placeholder.com/60x60.png?text=Clothing",
   },
+  // Add more dummy data if needed for testing pagination
 ];
 
 export default function CategoriesPage() {
@@ -34,6 +35,10 @@ export default function CategoriesPage() {
   const [showSidebar, setShowSidebar] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState(null);
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const handleEdit = (category) => {
     setSelectedCategory(category);
@@ -65,10 +70,55 @@ export default function CategoriesPage() {
     }
   };
 
+  // Filtered and paginated data
+  const filteredCategories = useMemo(() => {
+    return categories.filter((cat) =>
+      cat.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [searchTerm, categories]);
+
+  const totalPages = Math.ceil(filteredCategories.length / rowsPerPage);
+  const paginatedCategories = useMemo(() => {
+    const start = (currentPage - 1) * rowsPerPage;
+    return filteredCategories.slice(start, start + rowsPerPage);
+  }, [filteredCategories, currentPage, rowsPerPage]);
+
+  const handleRowsPerPageChange = (e) => {
+    setRowsPerPage(Number(e.target.value));
+    setCurrentPage(1);
+  };
+
   return (
-    <div className="p-6">
-      <h1 className="text-xl font-bold mb-4">Categories</h1>
-      <div className="overflow-x-auto">
+    <div className="p-2">
+      <h1 className="text-2xl font-bold mb-4">Categories</h1>
+
+      {/* Search and Rows per Page */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
+        <input
+          type="text"
+          placeholder="Search categories..."
+          className="border px-3 py-2 rounded-md w-full sm:max-w-sm"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+        <div className="flex items-center gap-2">
+          <label htmlFor="rowsPerPage">Show:</label>
+          <select
+            id="rowsPerPage"
+            className="border rounded px-2 py-1"
+            value={rowsPerPage}
+            onChange={handleRowsPerPageChange}
+          >
+            {[10, 50, 100, 500].map((value) => (
+              <option key={value} value={value}>
+                {value}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div>
         <table className="min-w-full bg-white border">
           <thead className="bg-gray-100">
             <tr>
@@ -80,9 +130,11 @@ export default function CategoriesPage() {
             </tr>
           </thead>
           <tbody>
-            {categories.map((cat, index) => (
+            {paginatedCategories.map((cat, index) => (
               <tr key={cat.id} className="border-b">
-                <td className="p-3">{index + 1}</td>
+                <td className="p-3">
+                  {(currentPage - 1) * rowsPerPage + index + 1}
+                </td>
                 <td className="p-3">
                   <Image
                     src={cat.image}
@@ -104,8 +156,36 @@ export default function CategoriesPage() {
                 </td>
               </tr>
             ))}
+            {paginatedCategories.length === 0 && (
+              <tr>
+                <td colSpan={5} className="text-center p-4 text-gray-500">
+                  No categories found.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
+      </div>
+
+      {/* Pagination Controls */}
+      <div className="flex justify-center mt-4 gap-2">
+        <Button
+          variant="outline"
+          onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+          disabled={currentPage === 1}
+        >
+          Previous
+        </Button>
+        <span className="flex items-center px-2">
+          Page {currentPage} of {totalPages || 1}
+        </span>
+        <Button
+          variant="outline"
+          onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+          disabled={currentPage === totalPages || totalPages === 0}
+        >
+          Next
+        </Button>
       </div>
 
       <CategorySidebar

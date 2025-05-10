@@ -34,8 +34,8 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="max-w-screen-md mx-auto w-full px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6 text-center">My Profile</h1>
+    <div className="max-w-screen-lg mx-auto w-full px-4 py-8">
+      <h1 className="text-2xl font-bold mb-4">My Profile</h1>
 
       <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
         <Image
@@ -53,7 +53,7 @@ export default function ProfilePage() {
               variant="outline"
               size="icon"
               onClick={() => setSidebarOpen(true)}
-              className="hover:bg-blue-500 hover:text-white"
+              className="hover:bg-red-700 bg-red-400 hover:text-white text-white"
             >
               <Pencil className="w-5 h-5" />
             </Button>
