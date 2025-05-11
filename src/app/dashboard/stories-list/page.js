@@ -72,9 +72,14 @@ export default function StoriesListPage() {
   );
 
   return (
-    <div className="p-2">
+    <div className="">
       <h1 className="text-2xl font-bold mb-4">Stories and Updates</h1>
 
+      <Link href="/dashboard/stories-list/add">
+        <Button className="bg-green-600 text-white mb-3">
+          Add New Update
+        </Button>
+      </Link>
       {/* Search and Row Selector */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-4">
         <Input

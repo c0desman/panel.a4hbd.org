@@ -60,6 +60,10 @@ export default function InitiativesPage() {
     setInitiatives((prev) => prev.filter((initiative) => initiative.id !== id));
   };
 
+  const handleInitiativeCreate = (newInitiative) => {
+    setInitiatives((prev) => [...prev, newInitiative]);
+  };
+
   // Filtered and paginated data
   const filteredInitiatives = useMemo(() => {
     return initiatives.filter((initiative) =>
@@ -79,7 +83,7 @@ export default function InitiativesPage() {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <h1 className="text-2xl font-semibold mb-4">Initiatives</h1>
 
       <Button onClick={handleAddInitiative} className="bg-green-600 text-white">
@@ -113,8 +117,8 @@ export default function InitiativesPage() {
       </div>
 
       {/* Initiatives Table */}
-      <Table>
-        <TableHeader>
+      <Table className="border">
+        <TableHeader className="bg-[#f5f5f5]">
           <TableRow>
             <TableHead>#</TableHead>
             <TableHead>Image</TableHead>
@@ -125,7 +129,7 @@ export default function InitiativesPage() {
         </TableHeader>
         <TableBody>
           {paginatedInitiatives.map((initiative, index) => (
-            <TableRow key={initiative.id}>
+            <TableRow className="bg-white" key={initiative.id}>
               <TableCell>
                 {(currentPage - 1) * rowsPerPage + index + 1}
               </TableCell>
@@ -196,6 +200,7 @@ export default function InitiativesPage() {
         onClose={handleCloseSidebar}
         onInitiativeUpdate={handleInitiativeUpdate}
         onInitiativeDelete={handleInitiativeDelete}
+        onInitiativeCreate={handleInitiativeCreate}
       />
     </div>
   );

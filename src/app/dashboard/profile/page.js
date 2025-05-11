@@ -1,4 +1,3 @@
-// /app/profile/page.js
 'use client';
 
 import { useState } from 'react';
@@ -20,8 +19,9 @@ const dummyUser = {
 };
 
 export default function ProfilePage() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState(dummyUser);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarMode, setSidebarMode] = useState('view');
 
   const handleUpdate = (updatedUser) => {
     setUser(updatedUser);
@@ -33,11 +33,15 @@ export default function ProfilePage() {
     setSidebarOpen(false);
   };
 
-  return (
-    <div className="max-w-screen-lg mx-auto w-full px-4 py-8">
-      <h1 className="text-2xl font-bold mb-4">My Profile</h1>
+  const handleEditClick = () => {
+    setSidebarMode('edit');
+    setSidebarOpen(true);
+  };
 
-      <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
+  return (
+    <div className="max-w-screen-lg mx-auto w-full">
+      <h1 className="text-2xl font-bold mb-6 text-gray-800">My Profile</h1>
+      <div className="flex justify-between items-center">
         <Image
           src={user.avatar}
           alt={user.name}
@@ -45,48 +49,57 @@ export default function ProfilePage() {
           height={120}
           className="rounded-full border-4 border-blue-500 shadow-md object-cover"
         />
+        <Button
+            variant="outline"
+            size="icon"
+            onClick={handleEditClick}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            <Pencil className="w-5 h-5" />
+        </Button>
+      </div>
 
-        <div className="flex-1 space-y-4 w-full">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl sm:text-2xl font-semibold">{user.name}</h2>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setSidebarOpen(true)}
-              className="hover:bg-red-700 bg-red-400 hover:text-white text-white"
-            >
-              <Pencil className="w-5 h-5" />
-            </Button>
-          </div>
-
+      <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 pt-3">
+        <div className="flex-1 w-full space-y-4">
+          <h2 className="text-2xl font-semibold text-gray-800">{user.name}</h2>
           <p className="text-gray-700">{user.bio}</p>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-            <div><strong>Email:</strong> {user.email}</div>
-            <div><strong>Phone:</strong> {user.phone}</div>
-            <div><strong>Role:</strong> {user.role}</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-gray-600">
             <div>
-              <strong>Status:</strong>{' '}
-              <span className={`inline-block px-2 py-1 rounded-full text-white text-xs font-semibold ${user.status === 'Active' ? 'bg-green-500' : 'bg-red-500'}`}>
+              <span className="font-medium">Email:</span> {user.email}
+            </div>
+            <div>
+              <span className="font-medium">Phone:</span> {user.phone}
+            </div>
+            <div>
+              <span className="font-medium">Role:</span> {user.role}
+            </div>
+            <div>
+              <span className="font-medium">Status:</span>{' '}
+              <span
+                className={`inline-block px-2 py-1 rounded-full text-white text-xs font-semibold ${
+                  user.status === 'Active' ? 'bg-green-500' : 'bg-red-500'
+                }`}
+              >
                 {user.status}
               </span>
             </div>
-            <div className="sm:col-span-2"><strong>Address:</strong> {user.address}</div>
+            <div className="sm:col-span-2">
+              <span className="font-medium">Address:</span> {user.address}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Sidebar: Force open in editing mode */}
-      {sidebarOpen && (
-        <UserSidebar
-          open={sidebarOpen}
-          onClose={() => setSidebarOpen(false)}
-          user={user}
-          onUpdate={handleUpdate}
-          onDelete={handleDelete}
-          forceEdit={true}
-        />
-      )}
+      {/* Sidebar */}
+      <UserSidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        user={user}
+        onUpdate={handleUpdate}
+        onDelete={handleDelete}
+        mode={sidebarMode}
+      />
     </div>
   );
 }

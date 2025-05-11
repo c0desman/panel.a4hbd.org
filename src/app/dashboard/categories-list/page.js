@@ -50,6 +50,11 @@ export default function CategoriesPage() {
     setShowSidebar(false);
   };
 
+  const handleAdd = (newCategory) => {
+    setCategories((prev) => [newCategory, ...prev]);
+    handleCloseSidebar();
+  };
+
   const handleUpdate = (updatedCategory) => {
     setCategories((prev) =>
       prev.map((cat) => (cat.id === updatedCategory.id ? updatedCategory : cat))
@@ -89,8 +94,12 @@ export default function CategoriesPage() {
   };
 
   return (
-    <div className="p-2">
+    <div className="">
       <h1 className="text-2xl font-bold mb-4">Categories</h1>
+
+      <Button className="bg-green-600 text-white mb-3">
+        Add New Category
+      </Button>
 
       {/* Search and Rows per Page */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
@@ -193,7 +202,7 @@ export default function CategoriesPage() {
         category={selectedCategory}
         onClose={handleCloseSidebar}
         onCategoryUpdate={handleUpdate}
-        onCategoryDelete={handleDeletePrompt}
+        onCategoryAdd={handleAdd}
       />
 
       <ConfirmDialog

@@ -45,11 +45,12 @@ export default function UsersTable() {
   const [sortOrder, setSortOrder] = useState("asc");
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [users, setUsers] = useState(initialUsers);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarMode, setSidebarMode] = useState("view"); // "view" | "edit" | "add"
+  const [selectedUser, setSelectedUser] = useState(null);
 
   const filteredUsers = useMemo(() => {
     return users.filter(
@@ -85,23 +86,35 @@ export default function UsersTable() {
     }
   };
 
+  const handleAddUser = (newUser) => {
+    const id = users.length + 1;
+    setUsers([...users, { id, ...newUser }]);
+  };
+
   const handleUpdateUser = (updatedUser) => {
-    setUsers(users.map(user => 
-      user.id === updatedUser.id ? updatedUser : user
-    ));
-    setSidebarOpen(false);
+    setUsers(users.map(user => user.id === updatedUser.id ? updatedUser : user));
   };
 
   const handleDeleteUser = () => {
     setUsers(users.filter(user => user.id !== selectedUser.id));
     setConfirmOpen(false);
     setSidebarOpen(false);
-    setSelectedUser(null);
   };
-
+  
   return (
-    <div className="w-full overflow-x-auto">
-      <div className="min-w-[900px] space-y-4 p-4">
+    <>
+      <Button
+        className="bg-green-600 text-white mb-3"
+        onClick={() => {
+          setSelectedUser({});
+          setSidebarMode("add");
+          setSidebarOpen(true);
+        }}
+      >
+        Add New User
+      </Button>
+      <div className="w-full overflow-x-auto">
+      <div className="min-w-[900px] space-y-4">
         {/* Top Controls */}
         <div className="flex flex-col md:flex-row justify-between gap-4 items-start md:items-center">
           <Input
@@ -156,7 +169,7 @@ export default function UsersTable() {
                 ))}
               </TableRow>
             </TableHeader>
-            <TableBody>
+            <TableBody className="bg-white">
               {paginatedUsers.map((user) => (
                 <TableRow key={user.id} className="hover:bg-gray-50 transition-colors">
                   <TableCell>
@@ -184,22 +197,26 @@ export default function UsersTable() {
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-2 flex-wrap justify-start">
-                      <Eye
-                        className="text-blue-500 cursor-pointer hover:scale-110 transition-transform"
+                      <Button
+                        variant="ghost"
                         onClick={() => {
                           setSelectedUser(user);
-                          setIsEditMode(false);
+                          setSidebarMode("view");
                           setSidebarOpen(true);
                         }}
-                      />
-                      <Pencil
-                        className="text-yellow-500 cursor-pointer hover:scale-110 transition-transform"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
                         onClick={() => {
                           setSelectedUser(user);
-                          setIsEditMode(true);
+                          setSidebarMode("edit");
                           setSidebarOpen(true);
                         }}
-                      />
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
                       <Trash2
                         className="text-red-500 cursor-pointer hover:scale-110 transition-transform"
                         onClick={() => {
@@ -248,9 +265,10 @@ export default function UsersTable() {
             open={sidebarOpen}
             onClose={() => setSidebarOpen(false)}
             user={selectedUser}
+            mode={sidebarMode}
             onUpdate={handleUpdateUser}
+            onAdd={handleAddUser}
             onDelete={handleDeleteUser}
-            forceEdit={isEditMode}
           />
           <ConfirmDialog
             open={confirmOpen}
@@ -263,5 +281,6 @@ export default function UsersTable() {
         </>
       )}
     </div>
+    </>
   );
 }

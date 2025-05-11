@@ -7,12 +7,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export default function InitiativesSidebar({ open, initiative, onClose, onInitiativeUpdate, onInitiativeDelete }) {
+export default function InitiativesSidebar({
+  open,
+  initiative,
+  onClose,
+  onInitiativeUpdate,
+  onInitiativeDelete,
+  onInitiativeCreate,
+}) {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
   const [image, setImage] = useState("");
   const [previewImage, setPreviewImage] = useState("");
+
+  const isEditMode = !!initiative;
 
   useEffect(() => {
     if (initiative) {
@@ -21,33 +30,55 @@ export default function InitiativesSidebar({ open, initiative, onClose, onInitia
       setDescription(initiative.description);
       setImage(initiative.image);
       setPreviewImage(initiative.image);
+    } else {
+      setName("");
+      setSlug("");
+      setDescription("");
+      setImage("");
+      setPreviewImage("");
     }
   }, [initiative]);
 
-  if (!open || !initiative) return null;
+  if (!open) return null;
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       const url = URL.createObjectURL(file);
       setPreviewImage(url);
-      setImage(url); // For demo purposes, using object URL instead of uploading
+      setImage(url);
     }
   };
 
-  const handleUpdate = () => {
-    onInitiativeUpdate({ ...initiative, name, slug, description, image });
+  const handleSubmit = () => {
+    const data = {
+      name,
+      slug,
+      description,
+      image,
+      id: isEditMode ? initiative.id : Date.now(), // Use current timestamp for demo ID
+    };
+    if (isEditMode) {
+      onInitiativeUpdate(data);
+    } else {
+      onInitiativeCreate(data);
+    }
+    onClose();
   };
 
   const handleDelete = () => {
-    onInitiativeDelete(initiative.id);
-    onClose(); // Close the sidebar after deleting
+    if (initiative) {
+      onInitiativeDelete(initiative.id);
+    }
+    onClose();
   };
 
   return (
     <div className="fixed inset-y-0 right-0 w-full sm:max-w-md bg-white border-l shadow-xl z-50 overflow-auto">
       <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-100">
-        <h2 className="text-lg font-semibold">Edit Initiative</h2>
+        <h2 className="text-lg font-semibold">
+          {isEditMode ? "Edit Initiative" : "Add Initiative"}
+        </h2>
         <Button variant="ghost" size="icon" onClick={onClose}>
           <X />
         </Button>
@@ -86,15 +117,24 @@ export default function InitiativesSidebar({ open, initiative, onClose, onInitia
           />
         </div>
 
-        {/* Buttons */}
+        {/* Action Buttons */}
         <div className="flex justify-between mt-6 gap-2">
-          <Button className="w-1/2 bg-green-600" onClick={handleUpdate}>
-            Save Changes
+          <Button className="w-1/2 bg-green-600" onClick={handleSubmit}>
+            {isEditMode ? "Save Changes" : "Add Initiative"}
           </Button>
           <Button className="w-1/2" onClick={onClose}>
             Cancel
           </Button>
         </div>
+
+        {/* Delete Button */}
+        {isEditMode && (
+          <div className="mt-4">
+            <Button variant="destructive" className="w-full" onClick={handleDelete}>
+              Delete Initiative
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

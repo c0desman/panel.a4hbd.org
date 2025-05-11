@@ -6,7 +6,7 @@ import UsersTable from '@/components/features/UsersTable'
 
 export default function UsersPage() {
   return (
-    <div className="p-4">
+    <div className="">
       <h1 className="text-2xl font-bold mb-4">Users Management</h1>
       <UsersTable />
     </div>
