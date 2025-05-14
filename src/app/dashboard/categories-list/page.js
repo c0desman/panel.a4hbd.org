@@ -97,7 +97,13 @@ export default function CategoriesPage() {
     <div className="">
       <h1 className="text-2xl font-bold mb-4">Categories</h1>
 
-      <Button className="bg-green-600 text-white mb-3">
+      <Button
+        className="bg-green-600 text-white mb-3"
+        onClick={() => {
+          setSelectedCategory(null);
+          setShowSidebar(true);
+        }}
+      >
         Add New Category
       </Button>
 
