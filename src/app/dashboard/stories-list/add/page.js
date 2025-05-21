@@ -14,13 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from '@/components/ui/select';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 
 export default function AddStoryPage() {
   const editorRef = useRef(null);
@@ -59,7 +53,7 @@ export default function AddStoryPage() {
   }, [postTitle, setValue]);
 
   useEffect(() => {
-    if (!editorRef.current) {
+    if (typeof window !== 'undefined' && !editorRef.current) {
       editorRef.current = new EditorJS({
         holder: 'editorjs',
         tools: {
