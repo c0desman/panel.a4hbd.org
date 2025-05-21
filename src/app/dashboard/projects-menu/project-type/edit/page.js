@@ -2,12 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
-import EditorJS from '@editorjs/editorjs';
-import Header from '@editorjs/header';
-import List from '@editorjs/list';
-import Embed from '@editorjs/embed';
-import ImageTool from '@editorjs/image';
-import Paragraph from '@editorjs/paragraph';
 import Image from 'next/image';
 
 import { Input } from '@/components/ui/input';
@@ -81,7 +75,7 @@ export default function EditProjectTypePage() {
   }, [title, setValue]);
 
   useEffect(() => {
-    if (!editorRef.current) {
+    if (typeof window !== 'undefined' && !editorRef.current) {
       editorRef.current = new EditorJS({
         holder: 'editorjs',
         tools: {
@@ -103,7 +97,6 @@ export default function EditProjectTypePage() {
         placeholder: 'Write your big description here...',
       });
     }
-
     return () => {
       if (editorRef.current?.destroy) {
         editorRef.current.destroy();
