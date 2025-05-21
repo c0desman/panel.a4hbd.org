@@ -23,6 +23,7 @@ const dummyStories = [
     postTitle: "Clean Water Project in Rangpur",
     slug: "clean-water-project",
     image: "https://via.placeholder.com/80x60.png?text=Water",
+    donor: "UNICEF",
     createdAt: "2024-11-01",
     updatedAt: "2025-01-15",
     user: { name: "John Doe" },
@@ -34,6 +35,7 @@ const dummyStories = [
     postTitle: "Education Support provided to Orphans in Cox's Bazar",
     slug: "education-for-all",
     image: "https://via.placeholder.com/80x60.png?text=Education",
+    donor: "UNICEF",
     createdAt: "2024-12-05",
     updatedAt: "2025-02-02",
     user: { name: "Jane Smith" },
@@ -45,6 +47,7 @@ const dummyStories = [
     postTitle: "Free Medical Camp Held in Rohingya Camp",
     slug: "medical-camp",
     image: "https://via.placeholder.com/80x60.png?text=Medical",
+    donor: "UNICEF",
     createdAt: "2025-01-20",
     updatedAt: "2025-03-01",
     user: { name: "Ali Ahmed" },
@@ -154,6 +157,8 @@ export default function StoriesListPage() {
                   Categories: {story.category}
                   <br />
                   Projects: {story.project}
+                  <br />
+                  Donors: {story.donor}
                 </TableCell>
                 <TableCell className="p-3 text-sm text-gray-500">
                   Created: {story.createdAt}

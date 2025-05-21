@@ -33,6 +33,7 @@ export default function AddStoryPage() {
       slug: '',
       project: '',
       category: '',
+      donor: '',
       ogTitle: '',
       ogDescription: '',
       ogImage: '',
@@ -126,6 +127,7 @@ export default function AddStoryPage() {
 
   const dummyProjects = ['Clean Water', 'Education Aid', 'Medical Mission'];
   const dummyCategories = ['Story', 'Update'];
+  const dummyDonors = ['Unicef', 'Sourire d\'Orphaline', 'World Vision'];
 
   return (
     <div className="max-w-7xl mx-auto mt-3">
@@ -147,7 +149,7 @@ export default function AddStoryPage() {
           <Input className="bg-white" {...register('slug', { required: true })} />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-2">
             <Label>Project</Label>
             <Select onValueChange={(val) => setValue('project', val)}>
@@ -179,6 +181,22 @@ export default function AddStoryPage() {
               </SelectContent>
             </Select>
           </div>
+
+          <div className="space-y-2">
+            <Label>Donors</Label>
+            <Select onValueChange={(val) => setValue('donors', val)}>
+              <SelectTrigger className="w-full bg-white">
+                <SelectValue placeholder="Select Donors" />
+              </SelectTrigger>
+              <SelectContent className="w-full bg-white">
+                {dummyDonors.map((don) => (
+                  <SelectItem key={don} value={don}>
+                    {don}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <div className="space-y-2">
@@ -197,7 +215,7 @@ export default function AddStoryPage() {
         </div>
 
         <div>
-          <Label>Content</Label>
+          <Label className="mb-2">Content</Label>
           <div
             id="editorjs"
             className="min-h-[300px] border rounded-md p-4 shadow-sm bg-white"

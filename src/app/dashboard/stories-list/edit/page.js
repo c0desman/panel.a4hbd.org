@@ -27,6 +27,7 @@ export default function EditStoryPage() {
       slug: 'helping-rural-villages',
       project: 'Clean Water',
       category: 'Story',
+      donors: 'Story',
       ogTitle: 'How We Helped',
       ogDescription: 'Learn how we transformed a community.',
       ogImage: '',
@@ -117,6 +118,7 @@ export default function EditStoryPage() {
 
   const dummyProjects = ['Clean Water', 'Education Aid', 'Medical Mission'];
   const dummyCategories = ['Story', 'Update'];
+  const dummyDonors = ['WaterAid', 'UNICEF', 'Save the Children'];
 
   return (
     <div className="max-w-7xl mx-auto mt-3">
@@ -133,6 +135,7 @@ export default function EditStoryPage() {
         ogImagePreview={ogImagePreview}
         dummyProjects={dummyProjects}
         dummyCategories={dummyCategories}
+        dummyDonors={dummyDonors}
       />
     </div>
   );
@@ -150,6 +153,7 @@ function StoryForm({
   ogImagePreview,
   dummyProjects,
   dummyCategories,
+  dummyDonors,
 }) {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -164,7 +168,7 @@ function StoryForm({
         <Input className="bg-white" {...register('slug', { required: true })} />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="space-y-2">
           <Label>Project</Label>
           <Select onValueChange={(val) => setValue('project', val)}>
@@ -191,6 +195,22 @@ function StoryForm({
               {dummyCategories.map((cat) => (
                 <SelectItem key={cat} value={cat}>
                   {cat}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Donors</Label>
+          <Select onValueChange={(val) => setValue('donors', val)}>
+            <SelectTrigger className="w-full bg-white">
+              <SelectValue placeholder="Select Donors" />
+            </SelectTrigger>
+            <SelectContent className="w-full bg-white">
+              {dummyDonors.map((don) => (
+                <SelectItem key={don} value={don}>
+                  {don}
                 </SelectItem>
               ))}
             </SelectContent>
