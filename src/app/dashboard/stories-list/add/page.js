@@ -2,19 +2,19 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import EditorJS from '@editorjs/editorjs';
-import Header from '@editorjs/header';
-import List from '@editorjs/list';
-import Embed from '@editorjs/embed';
-import ImageTool from '@editorjs/image';
-import Paragraph from '@editorjs/paragraph';
 import Image from 'next/image';
 
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@/components/ui/select';
 
 export default function AddStoryPage() {
   const editorRef = useRef(null);
@@ -52,28 +52,44 @@ export default function AddStoryPage() {
     }
   }, [postTitle, setValue]);
 
+  // EditorJS initialization
+  // This effect runs only on the client side
   useEffect(() => {
-    if (typeof window !== 'undefined' && !editorRef.current) {
-      editorRef.current = new EditorJS({
-        holder: 'editorjs',
-        tools: {
-          header: Header,
-          list: List,
-          paragraph: Paragraph,
-          embed: { class: Embed, inlineToolbar: true },
-          image: {
-            class: ImageTool,
-            config: {
-              endpoints: {
-                byFile: '/upload-image',
-                byUrl: '/fetch-image',
+    if (typeof window === 'undefined') return; // Critical SSR check
+
+    const initializeEditor = async () => {
+      // Dynamically import EditorJS and tools
+      const EditorJS = (await import('@editorjs/editorjs')).default;
+      const Header = (await import('@editorjs/header')).default;
+      const List = (await import('@editorjs/list')).default;
+      const Embed = (await import('@editorjs/embed')).default;
+      const ImageTool = (await import('@editorjs/image')).default;
+      const Paragraph = (await import('@editorjs/paragraph')).default;
+
+      if (!editorRef.current) {
+        editorRef.current = new EditorJS({
+          holder: 'editorjs',
+          tools: {
+            header: Header,
+            list: List,
+            paragraph: Paragraph,
+            embed: { class: Embed, inlineToolbar: true },
+            image: {
+              class: ImageTool,
+              config: {
+                endpoints: {
+                  byFile: '/upload-image',
+                  byUrl: '/fetch-image',
+                },
               },
             },
           },
-        },
-        placeholder: 'Write your story content here...',
-      });
-    }
+          placeholder: 'Write your story content here...',
+        });
+      }
+    };
+
+    initializeEditor();
 
     return () => {
       if (editorRef.current?.destroy) {
