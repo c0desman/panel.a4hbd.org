@@ -93,7 +93,7 @@ export default function EditProjectTypePage() {
             },
           },
         },
-        data: fetchedData.bigDescription,
+        data: fetchedData.bigDescription, // Use fetchedData.bigDescription here
         placeholder: 'Write your big description here...',
       });
     }
@@ -103,7 +103,7 @@ export default function EditProjectTypePage() {
         editorRef.current = null;
       }
     };
-  }, []);
+  }, [fetchedData.bigDescription]);
 
   const handleOgImageChange = (e) => {
     const file = e.target.files[0];
