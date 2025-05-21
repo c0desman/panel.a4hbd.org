@@ -2,12 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
-import EditorJS from '@editorjs/editorjs';
-import Header from '@editorjs/header';
-import List from '@editorjs/list';
-import Embed from '@editorjs/embed';
-import ImageTool from '@editorjs/image';
-import Paragraph from '@editorjs/paragraph';
 import Image from 'next/image';
 
 import { Input } from '@/components/ui/input';
@@ -64,28 +58,43 @@ export default function AddProjectTypePage() {
     }
   }, [title, setValue]);
 
+  // Load EditorJS only on the client side
   useEffect(() => {
-    if (!editorRef.current) {
-      editorRef.current = new EditorJS({
-        holder: 'editorjs',
-        tools: {
-          header: Header,
-          list: List,
-          paragraph: Paragraph,
-          embed: { class: Embed, inlineToolbar: true },
-          image: {
-            class: ImageTool,
-            config: {
-              endpoints: {
-                byFile: '/upload-image',
-                byUrl: '/fetch-image',
+    if (typeof window === 'undefined') return;
+
+    const initializeEditor = async () => {
+      // Dynamically import EditorJS and tools
+      const EditorJS = (await import('@editorjs/editorjs')).default;
+      const Header = (await import('@editorjs/header')).default;
+      const List = (await import('@editorjs/list')).default;
+      const Embed = (await import('@editorjs/embed')).default;
+      const ImageTool = (await import('@editorjs/image')).default;
+      const Paragraph = (await import('@editorjs/paragraph')).default;
+
+      if (!editorRef.current) {
+        editorRef.current = new EditorJS({
+          holder: 'editorjs',
+          tools: {
+            header: Header,
+            list: List,
+            paragraph: Paragraph,
+            embed: { class: Embed, inlineToolbar: true },
+            image: {
+              class: ImageTool,
+              config: {
+                endpoints: {
+                  byFile: '/upload-image',
+                  byUrl: '/fetch-image',
+                },
               },
             },
           },
-        },
-        placeholder: 'Write your big description here...',
-      });
-    }
+          placeholder: 'Write your big description here...',
+        });
+      }
+    };
+
+    initializeEditor();
 
     return () => {
       if (editorRef.current?.destroy) {
