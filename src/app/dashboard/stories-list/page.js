@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import ConfirmDialog from "@/components/features/popup/ConfirmDialog";
 
 const dummyStories = [
   {
@@ -57,6 +58,13 @@ export default function StoriesListPage() {
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [confirmDialog, setConfirmDialog] = useState({ open: false, storyId: null });
+
+  const handleDelete = (id) => {
+    console.log("Deleting Story with ID:", id);
+    setConfirmDialog({ open: false, storyId: null });
+    // Implement your deletion logic here (API call etc.)
+  };
 
   const filteredStories = useMemo(() => {
     return dummyStories.filter((story) =>
@@ -162,7 +170,7 @@ export default function StoriesListPage() {
                       <Pencil className="w-4 h-4" />
                     </Button>
                   </Link>
-                  <Button size="icon" variant="ghost">
+                  <Button onClick={() => setConfirmDialog({ open: true, storyId: story.id })} size="icon" variant="ghost">
                     <Trash2 className="w-4 h-4 text-red-600" />
                   </Button>
                 </TableCell>
@@ -198,6 +206,16 @@ export default function StoriesListPage() {
           </Button>
         </div>
       </div>
+      {/* Confirm Delete Dialog */}
+      <ConfirmDialog
+        open={confirmDialog.open}
+        onClose={() => setConfirmDialog({ open: false, storyId: null })}
+        onConfirm={() => handleDelete(confirmDialog.storyId)}
+        title="Are you sure you want to delete this Story/News/Update?"
+        description="This action is irreversible and will permanently remove the story from our records."
+        confirmText="Yes, delete"
+        cancelText="Cancel"
+      />
     </div>
   );
 }

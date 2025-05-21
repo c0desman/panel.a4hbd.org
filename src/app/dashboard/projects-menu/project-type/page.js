@@ -21,6 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import ConfirmDialog from "@/components/features/popup/ConfirmDialog";
 
 const dummyProjectTypes = [
   {
@@ -57,6 +58,13 @@ export default function ProjectTypePage() {
   const [selectedProject, setSelectedProject] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [confirmDialog, setConfirmDialog] = useState({ open: false, projectTypeId: null });
+  
+  const handleDelete = (id) => {
+    console.log("Deleting Project Type with ID:", id);
+    setConfirmDialog({ open: false, projectTypeId: null });
+    // Implement your deletion logic here (API call etc.)
+  };
 
   const filteredProjectTypes = useMemo(() => {
     return dummyProjectTypes.filter((type) => {
@@ -169,7 +177,12 @@ export default function ProjectTypePage() {
                       <Pencil className="w-4 h-4" />
                     </Button>
                   </Link>
-                  <Button size="icon" variant="ghost">
+                  {/* In the delete button */}
+                  <Button 
+                    onClick={() => setConfirmDialog({ open: true, projectTypeId: type.id })} // ✅ Change projectType.id to type.id
+                    size="icon" 
+                    variant="ghost"
+                  >
                     <Trash2 className="w-4 h-4 text-red-600" />
                   </Button>
                 </TableCell>
@@ -207,6 +220,16 @@ export default function ProjectTypePage() {
           </Button>
         </div>
       </div>
+      {/* Confirm Delete Dialog */}
+      <ConfirmDialog
+        open={confirmDialog.open}
+        onClose={() => setConfirmDialog({ open: false, projectTypeId: null })}
+        onConfirm={() => handleDelete(confirmDialog.projectTypeId)}
+        title="Are you sure you want to delete this project type?"
+        description="This action is irreversible and will permanently remove the project type from our records."
+        confirmText="Yes, delete"
+        cancelText="Cancel"
+      />
     </div>
   );
 }

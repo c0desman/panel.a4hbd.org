@@ -17,6 +17,11 @@ import {
   LogOut,
   ChevronDown,
   ChevronRight,
+  Facebook,
+  Footprints,
+  SquareLibrary,
+  FileSymlink,
+  QrCode,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -56,6 +61,15 @@ const menuItems = [
     ],
   },
   {
+    label: "Information Section",
+    icon: SquareLibrary,
+    submenu: [
+      { label: "Site Info", icon: QrCode, path: "/dashboard/info-sections/site-info" },
+      { label: "Social Media", icon: Facebook, path: "/dashboard/info-sections/social-media" },
+      { label: "Footer", icon: Footprints, path: "/dashboard/info-sections/footer" },
+    ],
+  },
+  {
     label: "Page Content",
     icon: Layers,
     submenu: [
@@ -70,6 +84,12 @@ const menuItems = [
       { label: "Contact Us", icon: PanelTop, path: "/dashboard/page-content/contact-us" },
       { label: "Collaboration Message", icon: PanelTop, path: "/dashboard/page-content/collaboration-msg" },
     ],
+  },
+  {
+    label: "Go to Site",
+    icon: FileSymlink,
+    path: "https://a4hbd-org.vercel.app/",
+    external: true,
   },
   {
     label: "Logout",

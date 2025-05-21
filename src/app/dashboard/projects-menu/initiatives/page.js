@@ -6,16 +6,24 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import Image from "next/image";
 import { Edit, Trash } from "lucide-react"; // Import edit and delete icons
 import InitiativesSidebar from "@/components/features/right-sidebar/InitiativesSidebar";
+import ConfirmDialog from "@/components/features/popup/ConfirmDialog";
 
 export default function InitiativesPage() {
   const [initiatives, setInitiatives] = useState([]);
   const [showSidebar, setShowSidebar] = useState(false);
   const [selectedInitiative, setSelectedInitiative] = useState(null);
+  const [confirmDialog, setConfirmDialog] = useState({ open: false, initiativeId: null });
 
   // Search, pagination, and rows per page state
   const [searchTerm, setSearchTerm] = useState("");
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
+
+  const handleDelete = (id) => {
+    console.log("Deleting initiative with ID:", id);
+    setConfirmDialog({ open: false, initiativeId: null });
+    // Implement your deletion logic here (API call etc.)
+  };
 
   useEffect(() => {
     // Mock fetching data (replace with actual fetch request)
@@ -54,10 +62,6 @@ export default function InitiativesPage() {
       )
     );
     handleCloseSidebar();
-  };
-
-  const handleInitiativeDelete = (id) => {
-    setInitiatives((prev) => prev.filter((initiative) => initiative.id !== id));
   };
 
   const handleInitiativeCreate = (newInitiative) => {
@@ -155,7 +159,7 @@ export default function InitiativesPage() {
                 <Button
                   variant="outline"
                   className="text-red-600"
-                  onClick={() => handleInitiativeDelete(initiative.id)}
+                  onClick={() => setConfirmDialog({ open: true, initiativeId: initiative.id })}
                 >
                   <Trash size={16} />
                 </Button>
@@ -199,8 +203,18 @@ export default function InitiativesPage() {
         initiative={selectedInitiative}
         onClose={handleCloseSidebar}
         onInitiativeUpdate={handleInitiativeUpdate}
-        onInitiativeDelete={handleInitiativeDelete}
+        onInitiativeDelete={handleDelete}
         onInitiativeCreate={handleInitiativeCreate}
+      />
+      {/* Confirm Delete Dialog */}
+      <ConfirmDialog
+        open={confirmDialog.open}
+        onClose={() => setConfirmDialog({ open: false, initiativeId: null })}
+        onConfirm={() => handleDelete(confirmDialog.initiativeId)}
+        title="Are you sure you want to delete this initiative?"
+        description="This action is irreversible and will permanently remove the initiative from our records."
+        confirmText="Yes, delete"
+        cancelText="Cancel"
       />
     </div>
   );
