@@ -92,7 +92,7 @@ const menuItems = [
     ],
   },
   {
-    label: "Go to Site",
+    label: "Go to Website",
     icon: FileSymlink,
     path: "https://a4hbd-org.vercel.app/",
     external: true,
