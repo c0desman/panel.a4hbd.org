@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { X, Pencil, Upload, Trash2 } from "lucide-react";
+import { X, Pencil, Upload, Trash2, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +15,7 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import Image from "next/image";
+import { useState } from "react";
 
 export default function UserSidebar({
   open,
@@ -25,6 +26,7 @@ export default function UserSidebar({
   onAdd,
   mode = "view", // "view" | "edit" | "add"
 }) {
+  const [showPassword, setShowPassword] = useState(false);
   const {
     register,
     handleSubmit,
@@ -34,10 +36,13 @@ export default function UserSidebar({
     formState: { isDirty },
   } = useForm({
     defaultValues: {
-      name: user.name || "",
+      firstName: user.firstName || "",
+      lastName: user.lastName || "",
       email: user.email || "",
+      phone: user.phone || "",
       role: user.role || "User",
       status: user.status || "Active",
+      password: "",
       bio: user.bio || "",
       avatar: null,
       avatarPreview: user.avatar || "/images/default-avatar.png",
@@ -48,10 +53,13 @@ export default function UserSidebar({
 
   useEffect(() => {
     reset({
-      name: user.name || "",
+      firstName: user.firstName || "",
+      lastName: user.lastName || "",
       email: user.email || "",
+      phone: user.phone || "",
       role: user.role || "User",
       status: user.status || "Active",
+      password: "",
       bio: user.bio || "",
       avatar: null,
       avatarPreview: user.avatar || "/images/default-avatar.png",
@@ -131,11 +139,15 @@ export default function UserSidebar({
               height={120}
               className="rounded-full border-4 border-white shadow-lg object-cover"
             />
-            <h3 className="text-xl font-bold">{user.name}</h3>
+            <h3 className="text-xl font-bold">{`${user.firstName} ${user.lastName}`}</h3>
             <p className="text-sm text-gray-500">{user.email}</p>
           </div>
 
           <div className="border-t pt-4 space-y-3">
+            <div className="flex justify-between">
+              <span className="font-medium text-gray-600">Phone:</span>
+              <span className="text-gray-800">{user.phone || "N/A"}</span>
+            </div>
             <div className="flex justify-between">
               <span className="font-medium text-gray-600">Role:</span>
               <span className="text-gray-800">{user.role}</span>
@@ -192,9 +204,15 @@ export default function UserSidebar({
 
           {/* Form Fields */}
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label className="text-gray-700">Full Name</Label>
-              <Input {...register("name")} className="focus:ring-blue-500" />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-gray-700">First Name</Label>
+                <Input {...register("firstName")} className="focus:ring-blue-500" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-gray-700">Last Name</Label>
+                <Input {...register("lastName")} className="focus:ring-blue-500" />
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -205,6 +223,39 @@ export default function UserSidebar({
                 className="focus:ring-blue-500"
               />
             </div>
+
+            <div className="space-y-2">
+              <Label className="text-gray-700">Phone Number</Label>
+              <Input
+                type="tel"
+                {...register("phone")}
+                className="focus:ring-blue-500"
+              />
+            </div>
+
+            {mode === "add" && (
+              <div className="space-y-2">
+                <Label className="text-gray-700">Password</Label>
+                <div className="relative">
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    {...register("password")}
+                    className="focus:ring-blue-500 pr-10"
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-5 w-5" />
+                    ) : (
+                      <Eye className="h-5 w-5" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

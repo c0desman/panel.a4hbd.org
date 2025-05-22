@@ -22,6 +22,7 @@ import {
   SquareLibrary,
   FileSymlink,
   QrCode,
+  Handshake,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,11 @@ const menuItems = [
       { label: "Users", icon: UsersRound, path: "/dashboard/users" },
       { label: "My Profile", icon: User, path: "/dashboard/profile" },
     ],
+  },
+  {
+    label: "Partners/Donors",
+    icon: Handshake,
+    path: "/dashboard/our-partners",
   },
   {
     label: "Stories and Update",
