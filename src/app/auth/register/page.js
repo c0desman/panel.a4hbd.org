@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import axios from "axios";
 import { useRouter } from "next/navigation";
@@ -15,12 +15,37 @@ import { toast } from "sonner";
 export default function RegisterPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
   const BACKEND_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
+
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm();
+
+  // Check authentication status on component mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await axios.get(
+          `${BACKEND_BASE_URL}/isauth`,
+          { withCredentials: true }
+        );
+
+        if (response.status === 200 && response.data.message === "user verified") {
+          router.push("/dashboard");
+        }
+      } catch (error) {
+        // User is not authenticated, show register form
+        console.log("User not authenticated, showing register form");
+      } finally {
+        setAuthChecked(true);
+      }
+    };
+
+    checkAuth();
+  }, [router, BACKEND_BASE_URL]);
 
   const onSubmit = async (data) => {
     setLoading(true);
@@ -54,6 +79,15 @@ export default function RegisterPage() {
       setLoading(false);
     }
   };
+
+  // Show loading state while checking auth
+  if (!authChecked) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
+        <p className="text-lg text-muted-foreground">Checking authentication...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">

@@ -11,14 +11,20 @@
 
 "use client";
 
-export default function DashboardLayout({ children }) {
+import withAuth from '@/components/auth/withAuth';
 
+function DashboardPage() {
+  console.log('[Dashboard] Rendering page');
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Welcome to the Dashboard</h1>
-      <p className="text-muted-foreground">
-        This is your main dashboard page. You can navigate using the sidebar menu.
-      </p>
+    <div className="p-6">
+      <h1 className="text-3xl font-bold mb-4">Dashboard</h1>
+      <div className="border rounded-lg p-4 bg-card">
+        <p className="text-muted-foreground">
+          Welcome to your dashboard. This content is protected and only visible to authenticated users.
+        </p>
+      </div>
     </div>
   );
 }
+
+export default withAuth(DashboardPage);

@@ -13,6 +13,7 @@ import { toast } from "sonner";
 export default function LoginPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
 
   const {
     register,
@@ -20,19 +21,23 @@ export default function LoginPage() {
     formState: { errors },
   } = useForm();
 
-  // Check if the user is authenticated on component mount
+  // Check authentication status on component mount
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/isauth`, {
-          withCredentials: true // Important for cookies
-        });
+        const response = await axios.get(
+          `${process.env.NEXT_PUBLIC_BACKEND_URL}/isauth`,
+          { withCredentials: true }
+        );
+
         if (response.status === 200 && response.data.message === "user verified") {
-          // User is authenticated, redirect to dashboard
           router.push("/dashboard");
         }
       } catch (error) {
-        // Handle error if needed, but we want to show the login form if not authenticated
+        // User is not authenticated, show login form
+        console.log("User not authenticated, showing login form");
+      } finally {
+        setAuthChecked(true);
       }
     };
 
@@ -42,13 +47,17 @@ export default function LoginPage() {
   const onSubmit = async (data) => {
     setLoading(true);
     try {
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_BACKEND_URL}/login`, {
-        email: data.email,
-        password: data.password,
-      }, {
-        withCredentials: true // Important for cookies
-      });
-      // Check if the login was successful
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/login`, 
+        {
+          email: data.email,
+          password: data.password,
+        }, 
+        {
+          withCredentials: true // Important for cookies
+        }
+      );
+      
       if (response.status === 200) {
         toast.success('Login successful!');
         router.push("/dashboard");
@@ -76,6 +85,15 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
+
+  // Show loading state while checking auth
+  if (!authChecked) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
+        <p className="text-lg text-muted-foreground">Checking authentication...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">

@@ -4,6 +4,7 @@ import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import DashboardNavbar from "@/components/dashboard/DashboardNavbar";
 import { SidebarProvider } from "@/context/SidebarContext";
 
+
 export const metadata = {
   title: "Dashboard Admin Template",
   description: "Modern and responsive admin dashboard for managing content and settings.",
