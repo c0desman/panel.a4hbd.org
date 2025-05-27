@@ -1,5 +1,4 @@
 import { config } from 'dotenv';
-import path from 'path';
 
 // Step 1: Load the master `.env` to check ACTIVE_ENV
 config({ path: ".env" });
@@ -13,7 +12,7 @@ config({ path: envPath });
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Your existing image config
+  // Image configuration
   images: {
     remotePatterns: [
       {
@@ -29,8 +28,8 @@ const nextConfig = {
   
   // New environment variables exposure
   env: {
-    // Add other variables you need explicitly
-    API_URL: process.env.API_URL,    
+    NEXT_PUBLIC_BACKEND_URL: process.env.NEXT_PUBLIC_BACKEND_URL,
+    PORT: process.env.PORT, // Expose PORT if needed
   }
 };
 
