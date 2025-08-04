@@ -1,12 +1,13 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { X } from "lucide-react";
 import Image from "next/image";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import axios from "axios";
+import { toast } from "sonner";
 
 export default function CategorySidebar({
   open,
@@ -15,70 +16,91 @@ export default function CategorySidebar({
   onCategoryUpdate,
   onCategoryAdd,
 }) {
-  const {
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    watch,
-    formState: { errors },
-  } = useForm();
+  const { register, handleSubmit, reset, formState: { errors } } = useForm();
+  const [preview, setPreview] = useState("");
+  const [file, setFile] = useState(null);
 
-  const [previewImage, setPreviewImage] = useState("");
-  const [selectedFile, setSelectedFile] = useState(null);
-
-  // Initialize form values and preview when sidebar opens
   useEffect(() => {
-    if (category) {
-      reset({
-        name: category.name,
-        slug: category.slug,
-      });
-      setPreviewImage(category.image);
-      setSelectedFile(null); // reset file input
-    } else {
-      reset({ name: "", slug: "" });
-      setPreviewImage("");
-      setSelectedFile(null);
+    if (open) {
+      reset({ name: category?.name || "", slug: category?.slug || "" });
+      setPreview(category?.imagepath
+        ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/${category.imagepath.replace(/\\/g, "/")}`
+        : "");
+      setFile(null);
     }
   }, [category, open, reset]);
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setSelectedFile(file);
-      const url = URL.createObjectURL(file);
-      setPreviewImage(url);
+  const handleFile = e => {
+    const f = e.target.files[0];
+    if (f) {
+      setFile(f);
+      setPreview(URL.createObjectURL(f));
     }
   };
 
   const onSubmit = async (data) => {
-    // Simulated file upload (replace with your actual API logic)
-    let imageUrl = category?.image || "";
-
-    if (selectedFile) {
-      // Upload logic goes here (e.g. API call or FormData)
-      // Example mock:
-      imageUrl = URL.createObjectURL(selectedFile); // For demo only
+    const form = new FormData();
+    form.append("name", data.name);
+    form.append("slug", data.slug);
+    if (file) {
+      form.append("image", file);
     }
 
-    const payload = {
-      ...data,
-      image: imageUrl,
-    };
+    try {
+      if (category) {
+        form.append("id", category.id);
+        await axios.post(
+          `${process.env.NEXT_PUBLIC_BACKEND_URL}/editcatagory`,
+          form,
+          {
+            withCredentials: true,
+            headers: { "Content-Type": "multipart/form-data" },
+          }
+        );
 
-    if (category) {
-      onCategoryUpdate({ ...category, ...payload });
-    } else {
-      const newCategory = {
-        id: Date.now(), // Replace with backend ID if needed
-        ...payload,
-      };
-      onCategoryAdd(newCategory);
+        const updated = {
+          ...category,
+          name: data.name,
+          slug: data.slug,
+          imagepath: file
+            ? URL.createObjectURL(file)
+            : category.imagepath,
+        };
+
+        toast.success("Category updated");
+        onCategoryUpdate(updated);
+      } else {
+        const res = await axios.post(
+          `${process.env.NEXT_PUBLIC_BACKEND_URL}/createcatagory`,
+          form,
+          {
+            withCredentials: true,
+            headers: { "Content-Type": "multipart/form-data" },
+          }
+        );
+
+        const added = {
+          id: res.data?.id || Date.now(),
+          name: data.name,
+          slug: data.slug,
+          imagepath: file ? URL.createObjectURL(file) : "",
+        };
+
+        toast.success("Category created");
+        onCategoryAdd(added);
+      }
+
+      onClose();
+    } catch (err) {
+      console.error(err);
+      toast.error(
+        err.response?.data?.message ||
+          err.response?.data?.error ||
+          "Error saving category"
+      );
     }
-
-    onClose();
   };
+
 
   if (!open) return null;
 
@@ -86,62 +108,39 @@ export default function CategorySidebar({
     <div className="fixed inset-y-0 right-0 w-full sm:max-w-md bg-white border-l shadow-xl z-50 overflow-auto">
       <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-100">
         <h2 className="text-lg font-semibold">
-          {category ? "Edit Category" : "Add New Category"}
+          {category ? "Edit Category" : "Add Category"}
         </h2>
-        <Button variant="ghost" size="icon" onClick={onClose}>
-          <X />
-        </Button>
+        <Button variant="ghost" size="icon" onClick={onClose}><X /></Button>
       </div>
 
-      <form className="p-4 space-y-4" onSubmit={handleSubmit(onSubmit)}>
-        {/* Image Preview and Upload */}
+      <form onSubmit={handleSubmit(onSubmit)} className="p-4 space-y-4">
         <div className="space-y-1">
           <Label>Image</Label>
-          {previewImage && (
+          {preview && (
             <div className="relative w-20 h-20">
-              <Image
-                src={previewImage}
-                alt="Preview"
-                fill
-                className="object-cover rounded"
-              />
+              <Image src={preview} alt="Preview" fill className="object-cover rounded" />
             </div>
           )}
-          <Input type="file" accept="image/*" onChange={handleImageChange} />
+          <Input type="file" accept="image/*" onChange={handleFile} />
         </div>
 
-        {/* Name */}
         <div className="space-y-1">
-          <Label htmlFor="name">Name</Label>
-          <Input
-            id="name"
-            {...register("name", { required: "Name is required" })}
-          />
-          {errors.name && (
-            <p className="text-sm text-red-600">{errors.name.message}</p>
-          )}
+          <Label>Name</Label>
+          <Input {...register("name", { required: "Name required" })}/>
+          {errors.name && <p className="text-red-600">{errors.name.message}</p>}
         </div>
 
-        {/* Slug */}
         <div className="space-y-1">
-          <Label htmlFor="slug">Slug</Label>
-          <Input
-            id="slug"
-            {...register("slug", { required: "Slug is required" })}
-          />
-          {errors.slug && (
-            <p className="text-sm text-red-600">{errors.slug.message}</p>
-          )}
+          <Label>Slug</Label>
+          <Input {...register("slug", { required: "Slug required" })}/>
+          {errors.slug && <p className="text-red-600">{errors.slug.message}</p>}
         </div>
 
-        {/* Buttons */}
         <div className="flex justify-between mt-6 gap-2">
           <Button type="submit" className="w-1/2 bg-green-600">
             {category ? "Save Changes" : "Add Category"}
           </Button>
-          <Button className="w-1/2" type="button" onClick={onClose}>
-            Cancel
-          </Button>
+          <Button type="button" className="w-1/2" onClick={onClose}>Cancel</Button>
         </div>
       </form>
     </div>

@@ -1,100 +1,110 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useEffect, useState } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
+import axios from 'axios';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import Image from 'next/image';
 
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 
 export default function EditStoryPage() {
-  const editorRef = useRef(null);
+  const { register, handleSubmit, setValue, watch, reset, control } = useForm();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const storyId = searchParams.get('id');
+
+  const [projects, setProjects] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [partners, setPartners] = useState([]);
   const [imagePreview, setImagePreview] = useState(null);
   const [ogImagePreview, setOgImagePreview] = useState(null);
-
-  const {
-    register,
-    handleSubmit,
-    watch,
-    setValue,
-    formState: { errors },
-  } = useForm({
-    defaultValues: {
-      postTitle: 'Helping Rural Villages',
-      slug: 'helping-rural-villages',
-      project: 'Clean Water',
-      category: 'Story',
-      donors: 'Story',
-      ogTitle: 'How We Helped',
-      ogDescription: 'Learn how we transformed a community.',
-      ogImage: '',
-      keywords: 'aid, clean water, rural',
-    },
-  });
+  const [isLoading, setIsLoading] = useState(true);
 
   const postTitle = watch('postTitle');
 
+  // Slug generator
   useEffect(() => {
     if (postTitle) {
-      const generatedSlug = postTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-      setValue('slug', generatedSlug);
+      const slug = postTitle
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+      setValue('slug', slug);
     }
   }, [postTitle, setValue]);
 
-  // EditorJS initialization
-  // This effect runs only on the client side
+  // Fetch dropdown data
   useEffect(() => {
-    if (typeof window === 'undefined') return; // Critical SSR check
+    const fetchDropdowns = async () => {
+      try {
+        const [projectRes, categoryRes, partnerRes] = await Promise.all([
+          axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/allprojects`, { withCredentials: true }),
+          axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/allcatagories`, { withCredentials: true }),
+          axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/allpartners`, { withCredentials: true }),
+        ]);
 
-    const initializeEditor = async () => {
-      // Dynamically import EditorJS and tools
-      const EditorJS = (await import('@editorjs/editorjs')).default;
-      const Header = (await import('@editorjs/header')).default;
-      const List = (await import('@editorjs/list')).default;
-      const Embed = (await import('@editorjs/embed')).default;
-      const ImageTool = (await import('@editorjs/image')).default;
-      const Paragraph = (await import('@editorjs/paragraph')).default;
-
-      if (!editorRef.current) {
-        editorRef.current = new EditorJS({
-          holder: 'editorjs',
-          tools: {
-            header: Header,
-            list: List,
-            paragraph: Paragraph,
-            embed: { class: Embed, inlineToolbar: true },
-            image: {
-              class: ImageTool,
-              config: {
-                endpoints: {
-                  byFile: '/upload-image',
-                  byUrl: '/fetch-image',
-                },
-              },
-            },
-          },
-          placeholder: 'Write your story content here...',
-        });
+        setProjects(projectRes.data.data || []);
+        setCategories(categoryRes.data.data || []);
+        setPartners(partnerRes.data.data || []);
+      } catch (err) {
+        toast.error('Failed to load dropdown data');
       }
     };
 
-    initializeEditor();
-
-    return () => {
-      if (editorRef.current?.destroy) {
-        editorRef.current.destroy();
-        editorRef.current = null;
-      }
-    };
+    fetchDropdowns();
   }, []);
+
+  // Fetch story data after dropdowns are loaded
+  useEffect(() => {
+    if (storyId && projects.length && categories.length && partners.length) {
+      fetchStoryData(storyId);
+    }
+  }, [storyId, projects, categories, partners]);
+
+  const fetchStoryData = async (id) => {
+    try {
+      const res = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/story/${id}`, {
+        withCredentials: true,
+      });
+
+      const data = res.data.story;
+
+      reset({
+        postTitle: data.title,
+        slug: data.slug,
+        content: data.content,
+        project: data.project?.id?.toString() || '',
+        category: data.catagory?.id?.toString() || '',
+        donor: data.partner?.id?.toString() || '',
+        ogTitle: data.ogtitle,
+        ogDescription: data.ogdescription,
+        keywords: data.keywords,
+      });
+
+      if (data.imagepath) {
+        setImagePreview(`${process.env.NEXT_PUBLIC_BACKEND_URL}/${data.imagepath}`);
+      }
+
+      if (data.ogimagepath) {
+        setOgImagePreview(`${process.env.NEXT_PUBLIC_BACKEND_URL}/${data.ogimagepath}`);
+      }
+    } catch (err) {
+      toast.error('Failed to load story data');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       setImagePreview(URL.createObjectURL(file));
+      setValue('image', file);
     }
   };
 
@@ -107,162 +117,177 @@ export default function EditStoryPage() {
   };
 
   const onSubmit = async (data) => {
-    if (editorRef.current) {
-      const output = await editorRef.current.save();
-      data.content = output;
-    }
+    const formData = new FormData();
+    formData.append('id', storyId);
+    formData.append('title', data.postTitle);
+    formData.append('slug', data.slug);
+    formData.append('content', data.content);
+    formData.append('projectId', data.project);
+    formData.append('categoryId', data.category);
+    formData.append('partnerId', data.donor);
+    formData.append('ogtitle', data.ogTitle);
+    formData.append('ogdescription', data.ogDescription);
+    formData.append('keywords', data.keywords);
 
-    console.log('Edited Story Data:', data);
-    // Send data to backend
+    if (data.image) formData.append('image', data.image);
+    if (data.ogImage) formData.append('ogimage', data.ogImage);
+
+    try {
+      await axios.post(`${process.env.NEXT_PUBLIC_BACKEND_URL}/editstory`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        withCredentials: true,
+      });
+
+      toast.success('Story updated successfully');
+      router.push('/dashboard/stories-list/');
+    } catch (error) {
+      toast.error('Failed to update story');
+    }
   };
 
-  const dummyProjects = ['Clean Water', 'Education Aid', 'Medical Mission'];
-  const dummyCategories = ['Story', 'Update'];
-  const dummyDonors = ['WaterAid', 'UNICEF', 'Save the Children'];
+  if (isLoading) {
+    return (
+      <div className="max-w-4xl mx-auto py-10 px-4">
+        <div className="flex justify-center items-center h-64">
+          <p>Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-7xl mx-auto mt-3">
-      <h1 className="text-3xl font-bold mb-8 text-left">Edit Story Post</h1>
-      <StoryForm
-        onSubmit={onSubmit}
-        register={register}
-        handleSubmit={handleSubmit}
-        errors={errors}
-        setValue={setValue}
-        handleImageChange={handleImageChange}
-        handleOgImageChange={handleOgImageChange}
-        imagePreview={imagePreview}
-        ogImagePreview={ogImagePreview}
-        dummyProjects={dummyProjects}
-        dummyCategories={dummyCategories}
-        dummyDonors={dummyDonors}
-      />
-    </div>
-  );
-}
-
-function StoryForm({
-  onSubmit,
-  register,
-  handleSubmit,
-  errors,
-  setValue,
-  handleImageChange,
-  handleOgImageChange,
-  imagePreview,
-  ogImagePreview,
-  dummyProjects,
-  dummyCategories,
-  dummyDonors,
-}) {
-  return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      <div className="space-y-2">
-        <Label>Post Title</Label>
-        <Input className="bg-white" {...register('postTitle', { required: true })} placeholder="Enter a descriptive title" />
-        {errors.postTitle && <p className="text-red-600 text-sm">Title is required.</p>}
-      </div>
-
-      <div className="space-y-2">
-        <Label>Slug</Label>
-        <Input className="bg-white" {...register('slug', { required: true })} />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="space-y-2">
-          <Label>Project</Label>
-          <Select onValueChange={(val) => setValue('project', val)}>
-            <SelectTrigger className="w-full bg-white">
-              <SelectValue placeholder="Select Project" />
-            </SelectTrigger>
-            <SelectContent className="w-full bg-white">
-              {dummyProjects.map((proj) => (
-                <SelectItem key={proj} value={proj}>
-                  {proj}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+    <div className="max-w-4xl mx-auto py-10 px-4">
+      <h1 className="text-3xl font-bold mb-8">Edit Story</h1>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        {/* Title */}
+        <div>
+          <Label>Post Title</Label>
+          <Input {...register('postTitle', { required: true })} className="bg-white mt-1" />
         </div>
 
-        <div className="space-y-2">
-          <Label>Category</Label>
-          <Select onValueChange={(val) => setValue('category', val)}>
-            <SelectTrigger className="w-full bg-white">
-              <SelectValue placeholder="Select Category" />
-            </SelectTrigger>
-            <SelectContent className="w-full bg-white">
-              {dummyCategories.map((cat) => (
-                <SelectItem key={cat} value={cat}>
-                  {cat}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        {/* Slug */}
+        <div>
+          <Label>Slug</Label>
+          <Input {...register('slug')} className="bg-white mt-1" />
         </div>
 
-        <div className="space-y-2">
-          <Label>Donors</Label>
-          <Select onValueChange={(val) => setValue('donors', val)}>
-            <SelectTrigger className="w-full bg-white">
-              <SelectValue placeholder="Select Donors" />
-            </SelectTrigger>
-            <SelectContent className="w-full bg-white">
-              {dummyDonors.map((don) => (
-                <SelectItem key={don} value={don}>
-                  {don}
-                </SelectItem>
+        {/* Selection Fields - Responsive Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Project */}
+          <div>
+            <Label>Project</Label>
+            <select
+              {...register('project')}
+              className="bg-white w-full px-3 py-2 border rounded mt-1"
+              defaultValue=""
+            >
+              <option value="">-- Select Project --</option>
+              {projects.map((proj) => (
+                <option key={proj.id} value={proj.id}>
+                  {proj.title}
+                </option>
               ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label>Upload Image</Label>
-        <Input type="file" onChange={handleImageChange} />
-        {imagePreview && (
-          <div className="w-48 h-32 mt-2 relative rounded border shadow overflow-hidden">
-            <Image src={imagePreview} alt="Preview" fill className="object-cover rounded" />
+            </select>
           </div>
-        )}
-      </div>
 
-      <div>
-        <Label>Content</Label>
-        <div id="editorjs" className="min-h-[300px] border rounded-md p-4 shadow-sm bg-white" />
-      </div>
+          {/* Category */}
+          <div>
+            <Label>Category</Label>
+            <select
+              {...register('category')}
+              className="bg-white w-full px-3 py-2 border rounded mt-1"
+              defaultValue=""
+            >
+              <option value="">-- Select Category --</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
-      <div className="pt-6 border-t">
-        <h2 className="text-lg font-semibold mb-4">SEO Details</h2>
-        <div className="space-y-4">
-          <div className="space-y-2">
+          {/* Donor / Partner */}
+          <div>
+            <Label>Donor</Label>
+            <select
+              {...register('donor')}
+              className="bg-white w-full px-3 py-2 border rounded mt-1"
+              defaultValue=""
+            >
+              <option value="">-- Select Donor --</option>
+              {partners.map((donor) => (
+                <option key={donor.id} value={donor.id}>
+                  {donor.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Main Image */}
+        <div>
+          <Label>Main Image</Label>
+          <Input type="file" accept="image/*" onChange={handleImageChange} className="bg-white mt-1" />
+          {imagePreview && (
+            <Image
+              src={imagePreview}
+              alt="Main Preview"
+              width={300}
+              height={200}
+              className="mt-3 rounded object-cover"
+            />
+          )}
+        </div>
+
+        {/* Content */}
+        <div>
+          <Label>Content</Label>
+          <Textarea {...register('content')} rows={6} className="bg-white mt-1" />
+        </div>
+
+        {/* SEO Section */}
+        <div className="border-t pt-6">
+          <h2 className="text-lg font-semibold mb-4">SEO Details</h2>
+
+          <div>
             <Label>OG Title</Label>
-            <Input className="bg-white" {...register('ogTitle')} />
+            <Input {...register('ogTitle')} className="bg-white mt-1" />
           </div>
-          <div className="space-y-2">
+
+          <div>
             <Label>OG Description</Label>
-            <Textarea className="bg-white" {...register('ogDescription')} />
+            <Textarea {...register('ogDescription')} rows={3} className="bg-white mt-1" />
           </div>
-          <div className="space-y-2">
-            <Label>Upload OG Image</Label>
-            <Input className="bg-white" type="file" accept="image/*" onChange={handleOgImageChange} />
+
+          <div>
+            <Label>OG Image</Label>
+            <Input type="file" accept="image/*" onChange={handleOgImageChange} className="bg-white mt-1" />
             {ogImagePreview && (
-              <div className="w-48 h-32 mt-2 relative rounded border shadow overflow-hidden">
-                <Image src={ogImagePreview} alt="OG Image Preview" fill className="object-cover rounded" />
-              </div>
+              <Image
+                src={ogImagePreview}
+                alt="OG Image"
+                width={300}
+                height={200}
+                className="mt-3 rounded object-cover"
+              />
             )}
           </div>
-          <div className="space-y-2">
+
+          <div>
             <Label>Keywords</Label>
-            <Input className="bg-white" {...register('keywords')} placeholder="Comma separated (e.g. aid, donation)" />
+            <Input
+              {...register('keywords')}
+              className="bg-white mt-1"
+              placeholder="Comma separated keywords"
+            />
           </div>
         </div>
-      </div>
 
-      <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 transition-colors">
-        Save Changes
-      </Button>
-    </form>
+        <Button type="submit" className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white text-lg">
+          Update Story
+        </Button>
+      </form>
+    </div>
   );
 }

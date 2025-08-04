@@ -111,8 +111,8 @@ export default function DashboardNavbar() {
           <DropdownMenuContent align="end" className="w-48 shadow-xl">
             <DropdownMenuLabel>My Account</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem><Link href="/profile">Profile</Link></DropdownMenuItem>
-            <DropdownMenuItem><Link href="/settings">Settings</Link></DropdownMenuItem>
+            <DropdownMenuItem><Link href="/dashboard/profile">Profile</Link></DropdownMenuItem>
+            <DropdownMenuItem><Link href="dashboard/settings">Settings</Link></DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem><Link href="/auth/logout">Logout</Link></DropdownMenuItem>
           </DropdownMenuContent>

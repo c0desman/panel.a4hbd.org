@@ -195,6 +195,7 @@ export default function ResetPasswordPage() {
                 <Input 
                   id="email"
                   type="email"
+                  disabled={step === 2}
                   placeholder="you@example.com"
                   {...register("email", {
                     required: "Email is required",

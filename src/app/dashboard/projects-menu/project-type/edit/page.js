@@ -1,250 +1,243 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
-import Image from 'next/image';
-
+import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import axios from 'axios';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import Image from 'next/image';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import decodeHtml from '@/lib/decodeHtml';
 
 export default function EditProjectTypePage() {
-  const editorRef = useRef(null);
+  const { register, handleSubmit, setValue } = useForm();
+  const [projects, setProjects] = useState([]);
   const [ogImagePreview, setOgImagePreview] = useState(null);
-  const [imagePreviews, setImagePreviews] = useState([]);
-
-  // Simulated fetch (Replace with real API or props)
-  const fetchedData = {
-    title: 'Medical Support',
-    slug: 'medical-support',
-    shortDescription: 'This is a brief summary about medical aid projects.',
-    selectedProjects: ['Medical Mission'],
-    images: [{ file: null }, { file: null }],
-    videos: [{ url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' }],
-    ogTitle: 'OG Title Example',
-    ogDescription: 'This is the OG description.',
-    keywords: 'medical, support, health',
-    bigDescription: {
-      time: 1680000000000,
-      blocks: [
-        {
-          type: 'header',
-          data: { text: 'Medical Mission Introduction', level: 2 },
-        },
-        {
-          type: 'paragraph',
-          data: { text: 'We aim to provide quality healthcare across rural areas.' },
-        },
-      ],
-      version: '2.27.0',
-    },
-  };
-
-  const {
-    register,
-    handleSubmit,
-    watch,
-    setValue,
-    control,
-    formState: { errors },
-  } = useForm({
-    defaultValues: fetchedData,
-  });
-
-  const { fields: imageFields, append: appendImage, remove: removeImage } = useFieldArray({
-    control,
-    name: 'images',
-  });
-
-  const { fields: videoFields, append: appendVideo, remove: removeVideo } = useFieldArray({
-    control,
-    name: 'videos',
-  });
-
-  const title = watch('title');
+  const [projectTypeId, setProjectTypeId] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
-    if (title) {
-      const generatedSlug = title
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '');
-      setValue('slug', generatedSlug);
+    const id = searchParams.get('id');
+    if (id) {
+      setProjectTypeId(id);
+      fetchProjectType(id);
     }
-  }, [title, setValue]);
+  }, [searchParams]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && !editorRef.current) {
-      editorRef.current = new EditorJS({
-        holder: 'editorjs',
-        tools: {
-          header: Header,
-          list: List,
-          paragraph: Paragraph,
-          embed: { class: Embed, inlineToolbar: true },
-          image: {
-            class: ImageTool,
-            config: {
-              endpoints: {
-                byFile: '/upload-image',
-                byUrl: '/fetch-image',
-              },
-            },
-          },
-        },
-        data: fetchedData.bigDescription, // Use fetchedData.bigDescription here
-        placeholder: 'Write your big description here...',
+    fetchProjects();
+  }, []);
+
+  const fetchProjects = async () => {
+    try {
+      const res = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/allprojects`, {
+        withCredentials: true,
       });
+      const decodedProjects = (res.data.data || []).map((item) => ({
+        ...item,
+        title: decodeHtml(item.title),
+      }));
+      setProjects(decodedProjects);
+    } catch (err) {
+      toast.error('Failed to load projects');
+      console.error(err);
     }
-    return () => {
-      if (editorRef.current?.destroy) {
-        editorRef.current.destroy();
-        editorRef.current = null;
+  };
+
+  const fetchProjectType = async (id) => {
+    try {
+      setIsLoading(true);
+      const res = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/projecttype/${id}`, {
+        withCredentials: true,
+      });
+      
+      const data = res.data.projectType;
+      
+      setValue('title', data.title || '');
+      setValue('slug', data.slug || '');
+      setValue('shortdescription', data.shortdescription || '');
+      setValue('longdescription', data.longdescription || '');
+      
+      // Set project ID (using first project in the array)
+      if (data.projects && data.projects.length > 0) {
+        setValue('projectId', data.projects[0].id.toString());
       }
-    };
-  }, [fetchedData.bigDescription]);
+      
+      // Set SEO fields
+      if (data.seo) {
+        setValue('seotitle', data.seo.title || '');
+        setValue('seodescription', data.seo.description || '');
+        setValue('seokeywords', data.seo.keywords || '');
+        
+        // Set OG image preview if exists
+        if (data.seo.imagepath) {
+          const imageUrl = `${process.env.NEXT_PUBLIC_BACKEND_URL}/${data.seo.imagepath.replace(/\\/g, '/')}`;
+          setOgImagePreview(imageUrl);
+        }
+      }
+      
+      setIsLoading(false);
+    } catch (err) {
+      toast.error('Failed to load project type data');
+      console.error(err);
+      setIsLoading(false);
+    }
+  };
 
-  const handleOgImageChange = (e) => {
-    const file = e.target.files[0];
+  const handleOgImagePreview = (e) => {
+    const file = e.target.files?.[0];
     if (file) {
-      setOgImagePreview(URL.createObjectURL(file));
-      setValue('ogImage', file);
+      const reader = new FileReader();
+      reader.onloadend = () => setOgImagePreview(reader.result);
+      reader.readAsDataURL(file);
     }
   };
 
-  const handleImageChange = (e, index) => {
-    const file = e.target.files[0];
-    if (file) {
-      const previews = [...imagePreviews];
-      previews[index] = URL.createObjectURL(file);
-      setImagePreviews(previews);
-      setValue(`images.${index}.file`, file);
+  const onSubmit = async (formData, e) => {
+    e.preventDefault();
+    
+    const formDataWithFile = new FormData();
+    formDataWithFile.append('id', projectTypeId);
+    formDataWithFile.append('title', formData.title || '');
+    formDataWithFile.append('slug', formData.slug || '');
+    formDataWithFile.append('shortdescription', formData.shortdescription || '');
+    formDataWithFile.append('longdescription', formData.longdescription || '');
+    formDataWithFile.append('projectId', formData.projectId || '');
+    formDataWithFile.append('seotitle', formData.seotitle || '');
+    formDataWithFile.append('seodescription', formData.seodescription || '');
+    formDataWithFile.append('seokeywords', formData.seokeywords || '');
+
+    const ogImageFile = e.target.ogimage.files?.[0];
+    if (ogImageFile) {
+      formDataWithFile.append('ogimage', ogImageFile);
+    }
+
+    try {
+      await axios.post(`${process.env.NEXT_PUBLIC_BACKEND_URL}/editprojecttype`, formDataWithFile, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        withCredentials: true,
+      });
+
+      toast.success('Project type updated successfully');
+      router.push('/dashboard/projects-menu/project-type');
+    } catch (error) {
+      console.error(error?.response?.data || error.message);
+      toast.error('Failed to update project type');
     }
   };
 
-  const onSubmit = async (data) => {
-    if (editorRef.current) {
-      const output = await editorRef.current.save();
-      data.bigDescription = output;
-    }
-
-    console.log('Updated Project Type:', data);
-    // Send updated data to backend
-  };
-
-  const dummyProjects = ['Clean Water', 'Education Aid', 'Medical Mission'];
+  if (isLoading) {
+    return (
+      <div className="max-w-4xl mx-auto py-10 px-4 text-center">
+        <p>Loading project type data...</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-7xl mx-auto mt-3">
-      <h1 className="text-3xl font-bold mb-8 text-left">Edit Project Type</h1>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <div className="max-w-4xl mx-auto py-10 px-4">
+      <h1 className="text-3xl font-bold mb-8">Edit Project Type</h1>
+      <form onSubmit={handleSubmit((data, e) => onSubmit(data, e))} className="space-y-8">
 
         {/* Title */}
-        <div className="space-y-2">
-          <Label>Title</Label>
-          <Input className="bg-white" {...register('title', { required: true })} />
-          {errors.title && <p className="text-red-600 text-sm">Title is required.</p>}
+        <div>
+          <Label htmlFor="title">Title</Label>
+          <Input id="title" {...register('title')} required className="bg-white mt-1" />
         </div>
 
         {/* Slug */}
-        <div className="space-y-2">
-          <Label>Slug</Label>
-          <Input className="bg-white" {...register('slug', { required: true })} />
-        </div>
-
-        {/* Select Projects */}
-        <div className="space-y-2">
-          <Label>Select Projects</Label>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            {dummyProjects.map((proj) => (
-              <label key={proj} className="flex items-center space-x-2">
-                <input type="checkbox" value={proj} {...register('selectedProjects')} defaultChecked={fetchedData.selectedProjects.includes(proj)} />
-                <span>{proj}</span>
-              </label>
-            ))}
-          </div>
+        <div>
+          <Label htmlFor="slug">Slug</Label>
+          <Input id="slug" {...register('slug')} required className="bg-white mt-1" />
         </div>
 
         {/* Short Description */}
-        <div className="space-y-2">
-          <Label>Short Description</Label>
-          <Textarea {...register('shortDescription')} rows={3} />
-        </div>
-
-        {/* Big Description */}
         <div>
-          <Label className="mb-3">Big Description</Label>
-          <div id="editorjs" className="min-h-[100px] border rounded-md p-4 shadow-sm bg-white" />
+          <Label htmlFor="shortdescription">Short Description</Label>
+          <Textarea id="shortdescription" {...register('shortdescription')} rows={3} className="bg-white mt-1" />
         </div>
 
-        {/* Upload Images */}
-        <div className="space-y-2">
-          <Label>Upload Images</Label>
-          {imageFields.map((field, index) => (
-            <div key={field.id} className="flex items-center space-x-2 mb-2">
-              <Input type="file" accept="image/*" onChange={(e) => handleImageChange(e, index)} />
-              {imagePreviews[index] && (
-                <div className="w-24 h-16 relative border rounded overflow-hidden">
-                  <Image src={imagePreviews[index]} alt="Preview" fill className="object-cover" />
-                </div>
-              )}
-              {index > 0 && (
-                <Button type="button" variant="destructive" onClick={() => {
-                  removeImage(index);
-                  const previews = [...imagePreviews];
-                  previews.splice(index, 1);
-                  setImagePreviews(previews);
-                }}>-</Button>
-              )}
-            </div>
-          ))}
-          <Button type="button" onClick={() => appendImage({ file: null })}>+ Add More Image</Button>
+        {/* Long Description */}
+        <div>
+          <Label htmlFor="longdescription">Long Description</Label>
+          <Textarea id="longdescription" {...register('longdescription')} rows={4} className="bg-white mt-1" />
         </div>
 
-        {/* YouTube Videos */}
-        <div className="space-y-2">
-          <Label>YouTube Videos</Label>
-          {videoFields.map((field, index) => (
-            <div key={field.id} className="flex items-center space-x-2 mb-2">
-              <Input {...register(`videos.${index}.url`, { required: index === 0 })} />
-              {index > 0 && (
-                <Button type="button" variant="destructive" onClick={() => removeVideo(index)}>-</Button>
-              )}
-            </div>
-          ))}
-          <Button type="button" onClick={() => appendVideo({ url: '' })}>+ Add More Video</Button>
+        {/* Select Project */}
+        <div>
+          <Label htmlFor="projectId">Select Project</Label>
+          <select 
+            id="projectId" 
+            {...register('projectId')} 
+            required 
+            className="bg-white mt-1 px-3 py-2 border rounded w-full"
+          >
+            <option value="">-- Select Project --</option>
+            {projects.map((proj) => (
+              <option key={proj.id} value={proj.id}>
+                {proj.title} (ID: {proj.id})
+              </option>
+            ))}
+          </select>
         </div>
 
-        {/* SEO */}
-        <div className="pt-6 border-t">
-          <h2 className="text-lg font-semibold mb-4">SEO Details</h2>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>OG Title</Label>
-              <Input className="bg-white" {...register('ogTitle')} />
-            </div>
-            <div className="space-y-2">
-              <Label>OG Description</Label>
-              <Textarea {...register('ogDescription')} />
-            </div>
-            <div className="space-y-2">
-              <Label>OG Image</Label>
-              <Input type="file" accept="image/*" onChange={handleOgImageChange} />
-              {ogImagePreview && (
-                <div className="w-48 h-32 mt-2 relative rounded border shadow overflow-hidden">
-                  <Image src={ogImagePreview} alt="OG Preview" fill className="object-cover" />
-                </div>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label>Keywords</Label>
-              <Input className="bg-white" {...register('keywords')} />
-            </div>
-          </div>
+        {/* SEO Title */}
+        <div>
+          <Label htmlFor="seotitle">SEO Title</Label>
+          <Input id="seotitle" {...register('seotitle')} className="bg-white mt-1" />
         </div>
 
-        <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">Update Project Type</Button>
+        {/* SEO Description */}
+        <div>
+          <Label htmlFor="seodescription">SEO Description</Label>
+          <Textarea id="seodescription" {...register('seodescription')} rows={3} className="bg-white mt-1" />
+        </div>
+
+        {/* SEO Keywords */}
+        <div>
+          <Label htmlFor="seokeywords">SEO Keywords</Label>
+          <Input 
+            id="seokeywords" 
+            {...register('seokeywords')} 
+            placeholder="Comma separated (e.g. water, aid)" 
+            className="bg-white mt-1" 
+          />
+        </div>
+
+        {/* OG Image */}
+        <div>
+          <Label htmlFor="ogimage">OG Image</Label>
+          <Input 
+            type="file" 
+            id="ogimage" 
+            name="ogimage" 
+            accept="image/*" 
+            onChange={handleOgImagePreview} 
+            className="bg-white mt-1" 
+          />
+          {ogImagePreview && (
+            <Image 
+              src={ogImagePreview} 
+              alt="OG Preview" 
+              width={400} 
+              height={250} 
+              className="mt-3 rounded object-cover" 
+            />
+          )}
+        </div>
+
+        {/* Submit Button */}
+        <div>
+          <Button type="submit" className="w-full py-5 bg-blue-600 hover:bg-blue-700 text-white text-lg">
+            Update Project Type
+          </Button>
+        </div>
+
       </form>
     </div>
   );

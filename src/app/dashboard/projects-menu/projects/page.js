@@ -1,6 +1,5 @@
 "use client";
-
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Eye, Pencil, Trash2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -11,7 +10,7 @@ import {
   TableCell,
   TableHead,
   TableHeader,
-  TableRow
+  TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import {
@@ -19,94 +18,153 @@ import {
   SelectTrigger,
   SelectValue,
   SelectContent,
-  SelectItem
+  SelectItem,
 } from "@/components/ui/select";
+import { toast } from 'sonner';
 import ConfirmDialog from "@/components/features/popup/ConfirmDialog";
 
-const dummyProjects = [
-  {
-    id: 1,
-    title: "Clean Water for All",
-    slug: "clean-water",
-    image: "https://via.placeholder.com/80x60.png?text=Water",
-    initiative: "Water Initiative",
-    createdAt: "2024-11-01",
-    updatedAt: "2025-01-15",
-    user: { name: "John Doe" },
-  },
-  {
-    id: 2,
-    title: "Support for Education",
-    slug: "education-support",
-    image: "https://via.placeholder.com/80x60.png?text=Education",
-    initiative: "Education Initiative",
-    createdAt: "2024-12-05",
-    updatedAt: "2025-02-02",
-    user: { name: "Jane Smith" },
-  },
-  {
-    id: 3,
-    title: "Medical Aid for Refugees",
-    slug: "medical-aid",
-    image: "https://via.placeholder.com/80x60.png?text=Medical",
-    initiative: "Health Initiative",
-    createdAt: "2025-01-20",
-    updatedAt: "2025-03-01",
-    user: { name: "Ali Ahmed" },
-  },
-];
+// Decode HTML entities like &#x2F; to /
+function decodeHTMLEntities(text) {
+  if (!text) return "";
+  const txt = document.createElement("textarea");
+  txt.innerHTML = text;
+  return txt.value;
+}
+
+// Format date to readable form
+function formatDate(dateStr) {
+  const options = {
+    dateStyle: "medium",
+    timeStyle: "short",
+    hour12: true,
+  };
+  return new Date(dateStr).toLocaleString("en-US", options);
+}
 
 export default function ProjectsListPage() {
+  const [projects, setProjects] = useState([]);
+  const [initiatives, setInitiatives] = useState([]);
   const [search, setSearch] = useState("");
-  const [initiativeFilter, setInitiativeFilter] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [confirmDialog, setConfirmDialog] = useState({ open: false, projectId: null });
   const [selectedInitiative, setSelectedInitiative] = useState("all");
+  const [confirmDialog, setConfirmDialog] = useState({ open: false, projectId: null });
 
+  const [pagination, setPagination] = useState({
+    totalItems: 0,
+    currentPage: 1,
+    totalPages: 1,
+    pageSize: 10,
+  });
+
+  // Fetch all projects initially
+  const fetchProjects = async () => {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/projects`, {
+        credentials: "include",
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        setProjects(data.projects || []);
+        setPagination((prev) => ({
+          ...prev,
+          totalItems: data.pagination?.totalItems || data.projects.length,
+          totalPages: data.pagination?.totalPages || 1,
+        }));
+      } else {
+        console.error("Failed to fetch projects:", data.message);
+      }
+    } catch (err) {
+      console.error("Error fetching projects:", err);
+    }
+  };
+
+  const fetchInitiatives = async () => {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/allinitiative`, {
+        credentials: "include",
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        setInitiatives(data.data || []);
+      } else {
+        console.error("Failed to fetch initiatives:", data.message);
+      }
+    } catch (err) {
+      console.error("Error fetching initiatives:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchProjects();
+    fetchInitiatives();
+  }, []);
+
+  // Filter projects based on search + selected initiative
   const filteredProjects = useMemo(() => {
-    return dummyProjects.filter((project) => {
-        const matchesSearch =
-        project.title.toLowerCase().includes(search.toLowerCase()) ||
-        project.slug.toLowerCase().includes(search.toLowerCase());
-
+    return projects
+      .filter((project) => {
+        const title = decodeHTMLEntities(project.title || "");
+        const matchesSearch = title.toLowerCase().includes(search.toLowerCase());
         const matchesInitiative =
-        selectedInitiative === "all" || project.initiative === selectedInitiative;
-
+          selectedInitiative === "all" ||
+          (project.initiatives?.[0]?.id?.toString() === selectedInitiative);
         return matchesSearch && matchesInitiative;
-    });
-    }, [search, selectedInitiative]);
+      });
+  }, [projects, search, selectedInitiative]);
 
-  const totalPages = Math.ceil(filteredProjects.length / rowsPerPage);
-  const paginatedProjects = filteredProjects.slice(
-    (currentPage - 1) * rowsPerPage,
-    currentPage * rowsPerPage
-  );
+  const paginatedProjects = useMemo(() => {
+    const start = (pagination.currentPage - 1) * pagination.pageSize;
+    return filteredProjects.slice(start, start + pagination.pageSize);
+  }, [filteredProjects, pagination]);
 
-  const initiativesList = [...new Set(dummyProjects.map((p) => p.initiative))];
+  const handleDelete = async (id) => {
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/deleteproject/${id}`,
+        {
+          method: "DELETE",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ id }), // <-- Send the id in body
+        }
+      );
 
-  const handleDelete = (id) => {
-    console.log("Deleting project with ID:", id);
+      const data = await res.json();
+
+      if (res.ok) {
+        fetchProjects(); // Refresh list
+        toast.success("Project deleted successfully");
+      } else {
+        console.error("Failed to delete project", data.message);
+        toast.error("Unable to delete the project");
+      }
+    } catch (err) {
+      console.error("Error deleting project:", err);
+      toast.error("Error occurred while deleting the project");
+    }
+
     setConfirmDialog({ open: false, projectId: null });
-    // Implement your deletion logic here (API call etc.)
   };
 
   return (
-    <div className="">
+    <div>
       <h1 className="text-2xl font-bold mb-4">Projects List</h1>
 
       <Link href="/dashboard/projects-menu/projects/add/">
         <Button className="bg-green-600 text-white mb-3">Add New Project</Button>
       </Link>
 
-      {/* Search and Filter */}
+      {/* Search + Filter */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-4">
         <Input
           placeholder="Search projects..."
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
-            setCurrentPage(1);
+            setPagination((prev) => ({ ...prev, currentPage: 1 }));
           }}
           className="max-w-sm"
         />
@@ -116,28 +174,34 @@ export default function ProjectsListPage() {
           <Select
             value={selectedInitiative}
             onValueChange={(value) => {
-                setSelectedInitiative(value);
-                setCurrentPage(1);
+              setSelectedInitiative(value);
+              setPagination((prev) => ({ ...prev, currentPage: 1 }));
             }}
-            >
-            <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="Filter by Initiative" />
+          >
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Select Initiative" />
             </SelectTrigger>
             <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                {initiativesList.map((initiative) => (
-                <SelectItem key={initiative} value={initiative}>
-                    {initiative}
+              <SelectItem value="all">All</SelectItem>
+              {initiatives.map((initiative) => (
+                <SelectItem key={initiative.id} value={initiative.id.toString()}>
+                  {initiative.id}: {initiative.name}
                 </SelectItem>
-                ))}
+              ))}
             </SelectContent>
-        </Select>
+          </Select>
 
           <span className="text-sm">Rows per page:</span>
-          <Select value={String(rowsPerPage)} onValueChange={(value) => {
-            setRowsPerPage(parseInt(value));
-            setCurrentPage(1);
-          }}>
+          <Select
+            value={String(pagination.pageSize)}
+            onValueChange={(value) =>
+              setPagination((prev) => ({
+                ...prev,
+                pageSize: parseInt(value),
+                currentPage: 1,
+              }))
+            }
+          >
             <SelectTrigger className="w-[80px]">
               <SelectValue placeholder="10" />
             </SelectTrigger>
@@ -151,18 +215,16 @@ export default function ProjectsListPage() {
         </div>
       </div>
 
-      {/* Table */}
+      {/* Projects Table */}
       <div className="rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-12">ID</TableHead>
+              <TableHead className="w-12">#</TableHead>
               <TableHead>Image</TableHead>
               <TableHead>Project Title</TableHead>
-              <TableHead>Slug</TableHead>
               <TableHead>Initiative</TableHead>
               <TableHead>Created / Updated</TableHead>
-              <TableHead>Posted By</TableHead>
               <TableHead className="text-center">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -170,31 +232,38 @@ export default function ProjectsListPage() {
             {paginatedProjects.map((project, index) => (
               <TableRow key={project.id}>
                 <TableCell className="p-3">
-                  {(currentPage - 1) * rowsPerPage + index + 1}
+                  {(pagination.currentPage - 1) * pagination.pageSize + index + 1}
                 </TableCell>
                 <TableCell className="p-3">
                   <Image
-                    src={project.image}
-                    alt={project.title}
+                    src={`${process.env.NEXT_PUBLIC_BACKEND_URL}/${project.imagepath.replace(
+                      /\\/g,
+                      "/"
+                    )}`}
+                    alt="Project"
                     width={60}
                     height={40}
                     className="rounded-md object-cover border"
                   />
                 </TableCell>
-                <TableCell className="p-3 font-medium">{project.title}</TableCell>
-                <TableCell className="p-3">{project.slug}</TableCell>
-                <TableCell className="p-3 text-sm text-gray-500">{project.initiative}</TableCell>
-                <TableCell className="p-3 text-sm text-gray-500">
-                  Created: {project.createdAt}
-                  <br />
-                  Updated: {project.updatedAt}
+                <TableCell className="p-3 font-medium">
+                  {decodeHTMLEntities(project.title)}
                 </TableCell>
-                <TableCell className="p-3">{project.user.name}</TableCell>
+                <TableCell className="p-3 text-sm text-gray-500">
+                  {project.initiatives?.[0]?.name || "N/A"}
+                </TableCell>
+                <TableCell className="p-3 text-sm text-gray-500">
+                  Created: {formatDate(project.createdAt)}
+                  <br />
+                  Updated: {formatDate(project.updatedAt)}
+                </TableCell>
                 <TableCell className="text-right space-x-2 p-3">
-                  <Button size="icon" variant="ghost">
-                    <Eye className="w-4 h-4" />
-                  </Button>
-                  <Link href={`/dashboard/projects-menu/projects/edit/`}>
+                  <Link href={`/dashboard/projects-menu/projects/view/?id=${project.id}`}>
+                    <Button size="icon" variant="ghost">
+                      <Eye className="w-4 h-4" />
+                    </Button>
+                  </Link>
+                  <Link href={`/dashboard/projects-menu/projects/edit/?id=${project.id}`}>
                     <Button size="icon" variant="ghost">
                       <Pencil className="w-4 h-4" />
                     </Button>
@@ -213,27 +282,37 @@ export default function ProjectsListPage() {
         </Table>
       </div>
 
-      {/* Pagination */}
+      {/* Pagination Footer */}
       <div className="flex justify-between items-center mt-4">
         <p className="text-sm text-gray-600">
-          Showing {(currentPage - 1) * rowsPerPage + 1} to{" "}
-          {Math.min(currentPage * rowsPerPage, filteredProjects.length)} of{" "}
+          Showing {(pagination.currentPage - 1) * pagination.pageSize + 1} to{" "}
+          {Math.min(pagination.currentPage * pagination.pageSize, filteredProjects.length)} of{" "}
           {filteredProjects.length} entries.
         </p>
         <div className="flex gap-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-            disabled={currentPage === 1}
+            onClick={() =>
+              setPagination((prev) => ({
+                ...prev,
+                currentPage: Math.max(prev.currentPage - 1, 1),
+              }))
+            }
+            disabled={pagination.currentPage === 1}
           >
             Previous
           </Button>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-            disabled={currentPage === totalPages}
+            onClick={() =>
+              setPagination((prev) => ({
+                ...prev,
+                currentPage: Math.min(prev.currentPage + 1, pagination.totalPages),
+              }))
+            }
+            disabled={pagination.currentPage === pagination.totalPages}
           >
             Next
           </Button>

@@ -14,6 +14,7 @@ config({ path: envPath });
 const nextConfig = {
   // Image configuration
   images: {
+    domains: ['localhost'], // Allow localhost for local development
     remotePatterns: [
       {
         protocol: 'https',

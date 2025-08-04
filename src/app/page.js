@@ -1,15 +1,22 @@
-// app/page.js
 "use client";
-
+import { useAuth } from "@/context/auth";
+import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { useRouter } from "next/navigation"; // ✅ App Router version
 
 export default function HomePage() {
   const router = useRouter();
+  const { isLoading, isAuthenticated } = useAuth();
 
   useEffect(() => {
-    router.push("/auth/login"); // ✅ push inside useEffect
-  }, [router]);
+    if (isLoading) return; // Wait until auth check completes
+    
+    if (isAuthenticated) {
+      router.push("/dashboard");
+    } else {
+      router.push("/auth/login");
+    }
+  }, [isLoading, isAuthenticated, router]);
 
-  return null; // no need to render anything
+  // Show nothing while redirecting
+  return null;
 }

@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import axios from "axios";
+import { toast } from "sonner";
 
 export default function PartnerSidebar({
   open,
@@ -38,15 +40,9 @@ export default function PartnerSidebar({
         address: partner.address,
         about: partner.about,
       });
-      setPreviewImage(partner.image);
+      setPreviewImage(`${process.env.NEXT_PUBLIC_BACKEND_URL}/${partner.imagepath}`);
     } else {
-      reset({
-        name: "",
-        slug: "",
-        status: "active",
-        address: "",
-        about: "",
-      });
+      reset({ name: "", slug: "", status: "active", address: "", about: "" });
       setPreviewImage("");
     }
   }, [partner, open, reset]);
@@ -60,17 +56,33 @@ export default function PartnerSidebar({
   };
 
   const onSubmit = async (data) => {
-    const payload = {
-      ...data,
-      image: selectedFile ? URL.createObjectURL(selectedFile) : previewImage,
-    };
+    try {
+      const formData = new FormData();
+      formData.append("name", data.name);
+      formData.append("slug", data.slug);
+      formData.append("status", data.status);
+      formData.append("address", data.address || "");
+      formData.append("about", data.about || "");
+      if (selectedFile) formData.append("image", selectedFile);
+      if (partner) formData.append("id", partner.id);
 
-    if (partner) {
-      onPartnerUpdate({ ...partner, ...payload });
-    } else {
-      onPartnerAdd({ ...payload, id: Date.now() });
+      const endpoint = partner
+        ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/editpartner`
+        : `${process.env.NEXT_PUBLIC_BACKEND_URL}/createpartner`;
+
+      await axios.post(endpoint, formData, {
+        withCredentials: true,
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      toast.success(`Partner ${partner ? "updated" : "created"} successfully`);
+      partner ? onPartnerUpdate() : onPartnerAdd();
+    } catch (error) {
+      console.error("Form submit error:", error);
+      toast.error("Failed to submit partner");
     }
-    onClose();
   };
 
   if (!open) return null;
@@ -79,107 +91,47 @@ export default function PartnerSidebar({
     <div className="fixed inset-y-0 right-0 w-full sm:max-w-md bg-white border-l shadow-xl z-50 overflow-auto">
       <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-100">
         <h2 className="text-lg font-semibold">
-          {actionType === 'view' ? 'Partner Details' : 
-           partner ? 'Edit Partner' : 'Add New Partner'}
+          {actionType === 'view' ? 'Partner Details' : partner ? 'Edit Partner' : 'Add New Partner'}
         </h2>
-        <Button variant="ghost" size="icon" onClick={onClose}>
-          <X />
-        </Button>
+        <Button variant="ghost" size="icon" onClick={onClose}><X /></Button>
       </div>
 
       <form className="p-4 space-y-4" onSubmit={handleSubmit(onSubmit)}>
-        {/* View Mode Display */}
         {actionType === 'view' ? (
-          <div className="space-y-4">
-            <div>
-              <Label>ID</Label>
-              <p className="mt-1">{partner?.id}</p>
-            </div>
-            <div>
-              <Label>Image</Label>
-              {previewImage && (
-                <div className="relative w-20 h-20 mt-1">
-                  <Image
-                    src={previewImage}
-                    alt="Partner"
-                    fill
-                    className="object-cover rounded"
-                  />
-                </div>
-              )}
-            </div>
-            <div>
-              <Label>Name</Label>
-              <p className="mt-1">{partner?.name}</p>
-            </div>
-            <div>
-              <Label>Slug</Label>
-              <p className="mt-1">{partner?.slug}</p>
-            </div>
-            <div>
-              <Label>Status</Label>
-              <p className="mt-1 capitalize">{partner?.status}</p>
-            </div>
-            <div>
-              <Label>Address</Label>
-              <p className="mt-1">{partner?.address}</p>
-            </div>
-            <div>
-              <Label>About</Label>
-              <p className="mt-1 whitespace-pre-line">{partner?.about}</p>
-            </div>
-          </div>
-        ) : (
-          /* Edit/Add Form */
           <>
-            <div className="space-y-1">
-              <Label>Image</Label>
-              {previewImage && (
-                <div className="relative w-20 h-20 mb-2">
-                  <Image
-                    src={previewImage}
-                    alt="Preview"
-                    fill
-                    className="object-cover rounded"
-                  />
-                </div>
-              )}
-              <Input 
-                type="file" 
-                accept="image/*" 
-                onChange={handleImageChange} 
-                disabled={actionType === 'view'}
-              />
+            <Label className='mb-2'>ID</Label><p>{partner?.id}</p>
+            <Label className='mb-2'>Image</Label>
+            {previewImage && <Image src={previewImage} alt="Preview" width={60} height={60} className="rounded" />}
+            <Label className='mb-2'>Name</Label><p>{partner?.name}</p>
+            <Label className='mb-2'>Slug</Label><p>{partner?.slug}</p>
+            <Label className='mb-2'>Status</Label><p>{partner?.status}</p>
+            <Label className='mb-2'>Address</Label><p>{partner?.address}</p>
+            <Label className='mb-2'>About</Label><p>{partner?.about}</p>
+          </>
+        ) : (
+          <>
+            <div>
+              <Label className='mb-2'>Image</Label>
+              {previewImage && <Image src={previewImage} alt="Preview" width={60} height={60} className="rounded mb-2" />}
+              <Input type="file" accept="image/*" onChange={handleImageChange} />
             </div>
 
-            <div className="space-y-1">
-              <Label>Name</Label>
-              <Input
-                {...register("name", { required: "Name is required" })}
-                disabled={actionType === 'view'}
-              />
-              {errors.name && <p className="text-red-600 text-sm">{errors.name.message}</p>}
+            <div>
+              <Label className='mb-2'>Name</Label>
+              <Input {...register("name", { required: "Name is required" })} />
+              {errors.name && <p className="text-red-500 text-sm">{errors.name.message}</p>}
             </div>
 
-            <div className="space-y-1">
-              <Label>Slug</Label>
-              <Input
-                {...register("slug", { required: "Slug is required" })}
-                disabled={actionType === 'view'}
-              />
-              {errors.slug && <p className="text-red-600 text-sm">{errors.slug.message}</p>}
+            <div>
+              <Label className='mb-2'>Slug</Label>
+              <Input {...register("slug", { required: "Slug is required" })} />
+              {errors.slug && <p className="text-red-500 text-sm">{errors.slug.message}</p>}
             </div>
 
-            <div className="space-y-1">
-              <Label>Status</Label>
-              <Select
-                onValueChange={(value) => setValue("status", value)}
-                defaultValue={partner?.status || "active"}
-                disabled={actionType === 'view'}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+            <div>
+              <Label className='mb-2'>Status</Label>
+              <Select onValueChange={(value) => setValue("status", value)} defaultValue="active">
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="active">Active</SelectItem>
                   <SelectItem value="inactive">Inactive</SelectItem>
@@ -187,33 +139,24 @@ export default function PartnerSidebar({
               </Select>
             </div>
 
-            <div className="space-y-1">
-              <Label>Address</Label>
-              <Input
-                {...register("address")}
-                disabled={actionType === 'view'}
-              />
+            <div>
+              <Label className='mb-2'>Address</Label>
+              <Input {...register("address")} />
             </div>
 
-            <div className="space-y-1">
-              <Label>About Partner</Label>
-              <textarea
-                {...register("about")}
-                className="w-full border rounded-md p-2 min-h-[100px]"
-                disabled={actionType === 'view'}
-              />
+            <div>
+              <Label className='mb-2'>About</Label>
+              <textarea {...register("about")} className="w-full border rounded p-2" rows={4}></textarea>
             </div>
 
-            {actionType !== 'view' && (
-              <div className="flex gap-2 mt-6">
-                <Button type="submit" className="flex-1 bg-green-600">
-                  {partner ? "Save Changes" : "Add Partner"}
-                </Button>
-                <Button type="button" className="flex-1" variant="outline" onClick={onClose}>
-                  Cancel
-                </Button>
-              </div>
-            )}
+            <div className="flex gap-2 mt-4">
+              <Button type="submit" className="bg-green-600 text-white flex-1">
+                {partner ? "Save Changes" : "Add Partner"}
+              </Button>
+              <Button type="button" variant="outline" onClick={onClose} className="flex-1">
+                Cancel
+              </Button>
+            </div>
           </>
         )}
       </form>

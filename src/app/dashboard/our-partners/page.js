@@ -1,47 +1,58 @@
 // /src/app/dashboard/page-content/our-partners/page.js
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import axios from "axios";
 import { Eye, Pencil, Trash2 } from "lucide-react";
 import Image from "next/image";
 import PartnerSidebar from "@/components/features/right-sidebar/PartnerSidebar";
 import ConfirmDialog from "@/components/features/popup/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
-const initialPartners = [
-  {
-    id: 1,
-    name: "Tech Corp",
-    slug: "tech-corp",
-    image: "https://via.placeholder.com/60x60.png?text=Tech+Corp",
-    status: "active",
-    address: "123 Tech Street, Silicon Valley",
-    about: "Leading technology solutions provider",
-  },
-  {
-    id: 2,
-    name: "Green Energy Ltd",
-    slug: "green-energy",
-    image: "https://via.placeholder.com/60x60.png?text=Green+Energy",
-    status: "inactive",
-    address: "456 Eco Road, Green City",
-    about: "Sustainable energy solutions pioneer",
-  },
-];
+import { toast } from "sonner";
 
 export default function PartnersPage() {
-  const [partners, setPartners] = useState(initialPartners);
+  const [partners, setPartners] = useState([]);
   const [selectedPartner, setSelectedPartner] = useState(null);
   const [showSidebar, setShowSidebar] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [partnerToDelete, setPartnerToDelete] = useState(null);
-  const [actionType, setActionType] = useState('add'); // 'add', 'edit', 'view'
+  const [actionType, setActionType] = useState('add');
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
+
+  const fetchPartners = async (query = "") => {
+    try {
+      const endpoint = query.trim()
+        ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/partners/search`
+        : `${process.env.NEXT_PUBLIC_BACKEND_URL}/partners`;
+
+      const res = await axios.get(endpoint, {
+        params: query.trim() ? { query, page: 1, limit: 1000 } : {},
+        withCredentials: true,
+      });
+
+      // If using /partners route, the data might be inside `res.data.data` or `res.data`, depending on backend
+      setPartners(res.data.data || res.data);
+    } catch (err) {
+      console.error("Failed to fetch partners", err);
+      toast.error("Could not load partners.");
+    }
+  };
+
+  useEffect(() => {
+    fetchPartners();
+  }, []);
+
+  useEffect(() => {
+    const delayDebounce = setTimeout(() => {
+      fetchPartners(searchTerm);
+    }, 400);
+    return () => clearTimeout(delayDebounce);
+  }, [searchTerm]);
 
   const handleAction = (partner, type) => {
     setSelectedPartner(partner);
@@ -54,17 +65,13 @@ export default function PartnersPage() {
     setShowSidebar(false);
   };
 
-  const handleAdd = (newPartner) => {
-    setPartners((prev) => [{ ...newPartner, id: Date.now() }, ...prev]);
+  const handleAdd = async () => {
+    await fetchPartners("");
     handleCloseSidebar();
   };
 
-  const handleUpdate = (updatedPartner) => {
-    setPartners((prev) =>
-      prev.map((partner) => 
-        partner.id === updatedPartner.id ? updatedPartner : partner
-      )
-    );
+  const handleUpdate = async () => {
+    await fetchPartners("");
     handleCloseSidebar();
   };
 
@@ -73,19 +80,29 @@ export default function PartnersPage() {
     setDeleteDialogOpen(true);
   };
 
-  const confirmDelete = () => {
-    setPartners((prev) => prev.filter((p) => p.id !== partnerToDelete));
-    setDeleteDialogOpen(false);
-    handleCloseSidebar();
+  const confirmDelete = async () => {
+    try {
+      await axios.delete(`${process.env.NEXT_PUBLIC_BACKEND_URL}/deletepartner`, {
+        data: { id: partnerToDelete },
+        withCredentials: true,
+      });
+      toast.success("Partner deleted successfully");
+      await fetchPartners("");
+    } catch (error) {
+      console.error("Delete error:", error);
+      toast.error("Failed to delete partner.");
+    } finally {
+      setDeleteDialogOpen(false);
+      setPartnerToDelete(null);
+    }
   };
 
-  // Filtered and paginated data
   const filteredPartners = useMemo(() => {
     return partners.filter((partner) => {
-      const matchesSearch = partner.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           partner.slug.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesStatus = statusFilter === "all" || partner.status === statusFilter;
-      return matchesSearch && matchesStatus;
+      const matchSearch = partner.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          partner.slug.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchStatus = statusFilter === "all" || partner.status === statusFilter;
+      return matchSearch && matchStatus;
     });
   }, [searchTerm, statusFilter, partners]);
 
@@ -94,11 +111,6 @@ export default function PartnersPage() {
     const start = (currentPage - 1) * rowsPerPage;
     return filteredPartners.slice(start, start + rowsPerPage);
   }, [filteredPartners, currentPage, rowsPerPage]);
-
-  const handleRowsPerPageChange = (value) => {
-    setRowsPerPage(Number(value));
-    setCurrentPage(1);
-  };
 
   return (
     <div className="">
@@ -115,7 +127,6 @@ export default function PartnersPage() {
         Add New Partner
       </Button>
 
-      {/* Filters and Rows per Page */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
         <div className="flex gap-2 flex-1">
           <input
@@ -138,7 +149,10 @@ export default function PartnersPage() {
         </div>
         <div className="flex items-center gap-2">
           <label htmlFor="rowsPerPage">Show:</label>
-          <Select value={rowsPerPage} onValueChange={handleRowsPerPageChange}>
+          <Select value={rowsPerPage} onValueChange={(value) => {
+            setRowsPerPage(Number(value));
+            setCurrentPage(1);
+          }}>
             <SelectTrigger className="w-[100px]">
               <SelectValue />
             </SelectTrigger>
@@ -169,7 +183,7 @@ export default function PartnersPage() {
                 <td className="p-3">{partner.id}</td>
                 <td className="p-3">
                   <Image
-                    src={partner.image}
+                    src={`${process.env.NEXT_PUBLIC_BACKEND_URL}/${partner.imagepath}`}
                     alt={partner.name}
                     width={40}
                     height={40}
@@ -198,16 +212,13 @@ export default function PartnersPage() {
             ))}
             {paginatedPartners.length === 0 && (
               <tr>
-                <td colSpan={6} className="text-center p-4 text-gray-500">
-                  No partners found.
-                </td>
+                <td colSpan={6} className="text-center p-4 text-gray-500">No partners found.</td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
 
-      {/* Pagination Controls */}
       <div className="flex justify-center mt-4 gap-2">
         <Button
           variant="outline"

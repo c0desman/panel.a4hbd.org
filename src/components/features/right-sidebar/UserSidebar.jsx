@@ -1,331 +1,270 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import { X, Pencil, Upload, Trash2, Eye, EyeOff } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+'use client';
+import { useEffect, useState } from 'react';
+import Image from 'next/image';
+import axios from 'axios';
+import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+import { Eye, EyeOff, Upload, X, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectTrigger,
   SelectValue,
   SelectContent,
   SelectItem,
-} from "@/components/ui/select";
-import Image from "next/image";
+} from '@/components/ui/select';
+import { USER_ROLES } from '@/constants';
 
-export default function UserSidebar({
-  open,
-  onClose,
-  user = {},
-  onUpdate,
-  onDelete,
-  onAdd,
-  mode = "view", // "view" | "edit" | "add"
-}) {
+export default function UserSidebar({ open, mode, user, onClose, onSave, onDelete, isProcessing = false }) {
+  if (!open || (mode !== 'add' && !user)) return null;
+
+  const isView = mode === 'view';
+  const isEdit = mode === 'edit';
+
+  const [partners, setPartners] = useState([]);
   const [showPassword, setShowPassword] = useState(false);
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    reset,
-    watch,
-    formState: { isDirty },
-  } = useForm({
+
+  const { register, handleSubmit, reset, watch, setValue } = useForm({
     defaultValues: {
-      firstName: user.firstName || "",
-      lastName: user.lastName || "",
-      email: user.email || "",
-      phone: user.phone || "",
-      role: user.role || "User",
-      status: user.status || "Active",
-      password: "",
-      bio: user.bio || "",
+      first_name: '',
+      last_name: '',
+      email: '',
+      phone: '',
+      usertype: '',
+      partnerId: '',
+      isActive: 'true',
+      isvalid: 'true',
+      password: '',
+      bio: '',
       avatar: null,
-      avatarPreview: user.avatar || "/images/default-avatar.png",
+      avatarPreview: '/images/default-avatar.png',
     },
   });
 
-  const avatarPreview = watch("avatarPreview");
+  const avatarPreview = watch('avatarPreview');
 
   useEffect(() => {
-    reset({
-      firstName: user.firstName || "",
-      lastName: user.lastName || "",
-      email: user.email || "",
-      phone: user.phone || "",
-      role: user.role || "User",
-      status: user.status || "Active",
-      password: "",
-      bio: user.bio || "",
-      avatar: null,
-      avatarPreview: user.avatar || "/images/default-avatar.png",
-    });
-  }, [user, mode, reset]);
+    axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/partners?status=active`, { withCredentials: true })
+      .then(res => setPartners(res.data.data || []))
+      .catch(() => toast.error('Failed to load partners'));
+  }, []);
 
-  const onSubmit = (data) => {
-    const payload = { ...user, ...data };
-    if (mode === "add") onAdd(payload);
-    else if (mode === "edit") onUpdate(payload);
-    onClose();
-  };
+  useEffect(() => {
+    if (mode === 'add') return;
+    axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/user/${user.id}`, { withCredentials: true })
+      .then(res => {
+        const u = res.data.data;
+        reset({
+          first_name: u.first_name || '',
+          last_name: u.last_name || '',
+          email: u.email || '',
+          phone: u.phone || '',
+          usertype: u.usertype || '',
+          partnerId: u.partnerId || '',
+          isActive: u.isActive ? 'true' : 'false',
+          isvalid: u.isvalid ? 'true' : 'false',
+          password: '',
+          bio: u.profile?.bio || '',
+          avatar: null,
+          avatarPreview: u.profile?.profilepicture
+            ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/${u.profile.profilepicture.replace(/\\/g, '/')}`
+            : '/images/default-avatar.png',
+        });
+      })
+      .catch(() => toast.error('Failed to load user data'));
+  }, [user?.id, mode]);
 
-  const handleAvatarChange = (e) => {
+  const handleAvatarChange = e => {
     const file = e.target.files[0];
-    if (file && file.type.startsWith("image/")) {
-      setValue("avatar", file);
-      setValue("avatarPreview", URL.createObjectURL(file));
+    if (file?.type.startsWith('image/')) {
+      setValue('avatar', file);
+      setValue('avatarPreview', URL.createObjectURL(file));
     }
   };
 
-  if (!open) return null;
+  const onSubmit = (data) => {
+    const form = new FormData();
 
-  const isReadOnly = mode === "view";
+    // Mandatory
+    form.append("id", user.id); // string is OK, backend parses it
+    form.append("first_name", data.first_name);
+    form.append("last_name", data.last_name);
+    form.append("email", data.email);
+    form.append("phone", data.phone);
+    form.append("usertype", data.usertype);
+
+    // Optional/conditional
+    if (data.password) {
+      form.append("password", data.password); // backend handles bcrypt
+    }
+    form.append("isActive", data.isActive); // e.g., "true"
+    form.append("isvalid", data.isvalid); // e.g., "true"
+    form.append("partnerId", data.partnerId || "");
+    form.append("bio", data.bio || "");
+
+    if (data.avatar) {
+      form.append("image", data.avatar); // This will go to req.file
+    }
+
+    const endpoint = "/edituser";
+
+    axios.post(process.env.NEXT_PUBLIC_BACKEND_URL + endpoint, form, {
+      withCredentials: true,
+    }).then(() => {
+      toast.success("User updated");
+      onSave(); // refresh user list
+      onClose(); // close sidebar
+    }).catch((err) => {
+      console.error("FormData error:", Object.fromEntries(form.entries())); // debug
+      toast.error(err.response?.data?.error || "Update failed");
+    });
+  };
 
   return (
-    <div className="fixed inset-y-0 right-0 w-full sm:max-w-md bg-white z-50 shadow-xl border-l overflow-auto">
-      {/* Header */}
-      <div className="flex justify-between items-center px-6 py-4 border-b bg-gradient-to-r from-blue-50 to-purple-50">
-        <h2 className="text-lg font-semibold text-gray-800">
-          {mode === "add"
-            ? "Add New User"
-            : mode === "edit"
-            ? "Edit Profile"
-            : "Profile Details"}
-        </h2>
-        <div className="flex items-center gap-2">
-          {mode === "view" && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onUpdate({ ...user })}
-              className="hover:bg-blue-100 text-blue-600"
-            >
-              <Pencil className="h-5 w-5" />
-            </Button>
-          )}
-          {mode !== "add" && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onDelete}
-              className="hover:bg-red-100 text-red-600"
-            >
-              <Trash2 className="h-5 w-5" />
-            </Button>
-          )}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            className="hover:bg-red-100 text-red-600"
-          >
-            <X className="h-5 w-5" />
-          </Button>
+    <div className="fixed inset-0 z-50 flex justify-end">
+      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
+      <div className="relative z-10 w-full sm:max-w-md bg-white shadow-xl border-l overflow-auto">
+          <div className="flex justify-between items-center px-6 py-4 border-b bg-gradient-to-r from-blue-50 to-purple-50">
+          <h2 className="text-lg font-semibold">
+            {mode === 'add' ? 'Add User' : isEdit ? 'Edit User' : 'User Details'}
+          </h2>
+          <div className="flex gap-2">
+            {!isView && <Button variant="ghost" size="icon" onClick={onDelete}><Trash2 /></Button>}
+            <Button variant="ghost" size="icon" onClick={onClose}><X /></Button>
+          </div>
         </div>
-      </div>
 
-      {isReadOnly ? (
-        // VIEW MODE
-        <div className="p-6 space-y-6 text-gray-800">
-          <div className="flex flex-col items-center gap-4">
+        <div className="p-6 space-y-4">
+          <div className="flex justify-center relative">
             <Image
-              src={user.avatar || "/images/default-avatar.png"}
-              alt="User Avatar"
+              src={avatarPreview}
               width={120}
               height={120}
-              className="rounded-full border-4 border-white shadow-lg object-cover"
+              className="rounded-full object-cover"
+              alt="Avatar"
             />
-            <h3 className="text-xl font-bold">{`${user.firstName} ${user.lastName}`}</h3>
-            <p className="text-sm text-gray-500">{user.email}</p>
-          </div>
-
-          <div className="border-t pt-4 space-y-3">
-            <div className="flex justify-between">
-              <span className="font-medium text-gray-600">Phone:</span>
-              <span className="text-gray-800">{user.phone || "N/A"}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="font-medium text-gray-600">Role:</span>
-              <span className="text-gray-800">{user.role}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="font-medium text-gray-600">Status:</span>
-              <span
-                className={`px-2 py-0.5 text-sm rounded-full ${
-                  user.status === "Active"
-                    ? "bg-green-100 text-green-700"
-                    : "bg-red-100 text-red-700"
-                }`}
-              >
-                {user.status}
-              </span>
-            </div>
-            <div>
-              <span className="font-medium text-gray-600 block mb-1">Bio:</span>
-              <p className="text-sm text-gray-700 whitespace-pre-line">
-                {user.bio || "No bio available."}
-              </p>
-            </div>
-          </div>
-        </div>
-      ) : (
-        // EDIT / ADD MODE
-        <form className="p-6 space-y-6" onSubmit={handleSubmit(onSubmit)}>
-          {/* Avatar */}
-          <div className="flex flex-col items-center gap-4">
-            <div className="relative group">
-              <Image
-                src={avatarPreview}
-                alt="User Avatar"
-                width={120}
-                height={120}
-                className="rounded-full border-4 border-white shadow-lg object-cover"
-              />
-              <label
-                htmlFor="avatar-upload"
-                className="absolute bottom-0 right-0 bg-blue-600 p-2 rounded-full cursor-pointer shadow-md hover:bg-blue-700 transition-colors"
-              >
-                <Upload className="h-5 w-5 text-white" />
+            {!isView && (
+              <label htmlFor="avatar" className="absolute bottom-0 right-0 bg-blue-600 p-2 rounded-full text-white">
+                <Upload />
+                <input id="avatar" type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
               </label>
-              <input
-                id="avatar-upload"
-                type="file"
-                name="avatar"
-                accept="image/*"
-                onChange={handleAvatarChange}
-                className="hidden"
-              />
-            </div>
+            )}
           </div>
 
-          {/* Form Fields */}
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-gray-700">First Name</Label>
-                <Input {...register("firstName")} className="focus:ring-blue-500" />
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <div className="flex gap-4">
+              <div className="w-100">
+                <Label className='mb-2'>First Name</Label>
+                <Input {...register('first_name')} />
               </div>
-              <div className="space-y-2">
-                <Label className="text-gray-700">Last Name</Label>
-                <Input {...register("lastName")} className="focus:ring-blue-500" />
+              <div className="w-100">
+                <Label className='mb-2'>Last Name</Label>
+                <Input {...register('last_name')} />
+              </div>
+            </div>
+            <div><Label className='mb-2'>Email</Label><Input type="email" {...register('email')} /></div>
+            <div><Label>Phone</Label><Input type="tel" {...register('phone')} /></div>
+
+            <div><Label className='mb-2'>User Type</Label>
+              <Select
+                value={watch("usertype") || ""}
+                onValueChange={(v) => setValue("usertype", v)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select user type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.values(USER_ROLES).map((role) => (
+                    <SelectItem key={role} value={role}>
+                      {role.charAt(0).toUpperCase() + role.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div><Label className='mb-2'>Partner</Label>
+              <Select
+                value={watch("partnerId") || "none"}
+                onValueChange={(v) => setValue("partnerId", v === "none" ? "" : v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select partner (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">—None—</SelectItem>
+                  {partners.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      #{p.id} : {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex gap-4">
+              <div className="w-100">
+                <Label className='mb-2'>Status</Label>
+                <Select
+                  value={watch("isActive") ?? "true"}
+                  onValueChange={(v) => setValue("isActive", v)}
+                >
+                  <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="true">Active</SelectItem>
+                    <SelectItem value="false">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="w-100">
+                <Label className='mb-2'>Valid</Label>
+                <Select
+                  value={watch("isvalid") ?? "true"}
+                  onValueChange={(v) => setValue("isvalid", v)}
+                >
+                  <SelectTrigger><SelectValue placeholder="Select validity" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="true">Verified</SelectItem>
+                    <SelectItem value="false">Not Verified</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-gray-700">Email Address</Label>
-              <Input
-                type="email"
-                {...register("email")}
-                className="focus:ring-blue-500"
-              />
-            </div>
+            <div><Label className='mb-2'>Bio</Label><Textarea {...register('bio')} /></div>
 
-            <div className="space-y-2">
-              <Label className="text-gray-700">Phone Number</Label>
-              <Input
-                type="tel"
-                {...register("phone")}
-                className="focus:ring-blue-500"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-gray-700">Password</Label>
+            <div>
+              <Label className='mb-2'>Password</Label>
               <div className="relative">
                 <Input
-                  type={showPassword ? "text" : "password"}
-                  {...register("password", {
-                    required: mode === "add" ? "Password is required" : false,
-                    minLength: mode === "add" ? {
-                      value: 8,
-                      message: "Password must be at least 8 characters"
-                    } : undefined
-                  })}
-                  placeholder={mode === "edit" ? "Leave blank to keep current password" : ""}
-                  className="focus:ring-blue-500 pr-10"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder={isEdit ? 'Leave blank to keep current' : ''}
+                  {...register('password')}
                 />
                 <button
                   type="button"
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2"
                   onClick={() => setShowPassword(!showPassword)}
                 >
-                  {showPassword ? (
-                    <EyeOff className="h-5 w-5" />
-                  ) : (
-                    <Eye className="h-5 w-5" />
-                  )}
+                  {showPassword ? <EyeOff /> : <Eye />}
                 </button>
               </div>
-              {mode === "edit" && (
-                <p className="text-xs text-gray-500 mt-1">Leave blank to keep current password</p>
-              )}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-gray-700">Role</Label>
-                <Select
-                  value={watch("role")}
-                  onValueChange={(value) => setValue("role", value)}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Admin">Admin</SelectItem>
-                    <SelectItem value="Editor">Editor</SelectItem>
-                    <SelectItem value="User">User</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-gray-700">Status</Label>
-                <Select
-                  value={watch("status")}
-                  onValueChange={(value) => setValue("status", value)}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Active">Active</SelectItem>
-                    <SelectItem value="Inactive">Inactive</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-gray-700">Bio</Label>
-              <Textarea
-                {...register("bio")}
-                className="min-h-[100px] focus:ring-blue-500"
-              />
-            </div>
-
-            <div className="flex gap-2 pt-6">
-              <Button
-                type="submit"
-                className="flex-1 bg-blue-600 hover:bg-blue-700"
-              >
-                {mode === "add" ? "Add User" : "Save Changes"}
+            <div className="flex gap-2">
+              <Button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700" disabled={isProcessing}>
+                {isEdit ? 'Update' : 'Create'}
               </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                className="flex-1"
-                onClick={onClose}
-              >
+              <Button type="button" variant="destructive" className="flex-1" onClick={onClose}>
                 Cancel
               </Button>
             </div>
-          </div>
-        </form>
-      )}
+          </form>
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,250 +1,159 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
-import Image from 'next/image';
-
+import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import axios from 'axios';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import Image from 'next/image';
+import { toast } from 'sonner';
+import decodeHtml from '@/lib/decodeHtml';
 
 export default function AddProjectTypePage() {
-  const editorRef = useRef(null);
+  const { register, handleSubmit, reset } = useForm();
+  const [projects, setProjects] = useState([]);
   const [ogImagePreview, setOgImagePreview] = useState(null);
-  const [imagePreviews, setImagePreviews] = useState([]);
-
-  const {
-    register,
-    handleSubmit,
-    watch,
-    setValue,
-    control,
-    formState: { errors },
-  } = useForm({
-    defaultValues: {
-      title: '',
-      slug: '',
-      shortDescription: '',
-      selectedProjects: [],
-      images: [{ file: null }],
-      videos: [{ url: '' }],
-      ogTitle: '',
-      ogDescription: '',
-      ogImage: '',
-      keywords: '',
-    },
-  });
-
-  const { fields: imageFields, append: appendImage, remove: removeImage } = useFieldArray({
-    control,
-    name: 'images',
-  });
-
-  const { fields: videoFields, append: appendVideo, remove: removeVideo } = useFieldArray({
-    control,
-    name: 'videos',
-  });
-
-  const title = watch('title');
 
   useEffect(() => {
-    if (title) {
-      const generatedSlug = title
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '');
-      setValue('slug', generatedSlug);
-    }
-  }, [title, setValue]);
-
-  // Load EditorJS only on the client side
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const initializeEditor = async () => {
-      // Dynamically import EditorJS and tools
-      const EditorJS = (await import('@editorjs/editorjs')).default;
-      const Header = (await import('@editorjs/header')).default;
-      const List = (await import('@editorjs/list')).default;
-      const Embed = (await import('@editorjs/embed')).default;
-      const ImageTool = (await import('@editorjs/image')).default;
-      const Paragraph = (await import('@editorjs/paragraph')).default;
-
-      if (!editorRef.current) {
-        editorRef.current = new EditorJS({
-          holder: 'editorjs',
-          tools: {
-            header: Header,
-            list: List,
-            paragraph: Paragraph,
-            embed: { class: Embed, inlineToolbar: true },
-            image: {
-              class: ImageTool,
-              config: {
-                endpoints: {
-                  byFile: '/upload-image',
-                  byUrl: '/fetch-image',
-                },
-              },
-            },
-          },
-          placeholder: 'Write your big description here...',
+    async function fetchProjects() {
+      try {
+        const res = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/allprojects`, {
+          withCredentials: true,
         });
+        const decodedProjects = (res.data.data || []).map((item) => ({
+          ...item,
+          title: decodeHtml(item.title),
+        }));
+        setProjects(decodedProjects);
+      } catch (err) {
+        toast.error('Failed to load projects');
+        console.error(err);
       }
-    };
+    }
 
-    initializeEditor();
-
-    return () => {
-      if (editorRef.current?.destroy) {
-        editorRef.current.destroy();
-        editorRef.current = null;
-      }
-    };
+    fetchProjects();
   }, []);
 
-  const handleOgImageChange = (e) => {
-    const file = e.target.files[0];
+  const handleOgImagePreview = (e) => {
+    const file = e.target.files?.[0];
     if (file) {
-      setOgImagePreview(URL.createObjectURL(file));
-      setValue('ogImage', file);
+      const reader = new FileReader();
+      reader.onloadend = () => setOgImagePreview(reader.result);
+      reader.readAsDataURL(file);
     }
   };
 
-  const handleImageChange = (e, index) => {
-    const file = e.target.files[0];
-    if (file) {
-      const previews = [...imagePreviews];
-      previews[index] = URL.createObjectURL(file);
-      setImagePreviews(previews);
-      setValue(`images.${index}.file`, file);
+  const onSubmit = async (formDataFromReactHookForm, e) => {
+    e.preventDefault();
+
+    const ogImageFile = e.target.ogimage.files?.[0];
+    if (!ogImageFile) return toast.error('OG Image is required.');
+
+    const formData = new FormData();
+
+    formData.append('title', formDataFromReactHookForm.title || '');
+    formData.append('slug', formDataFromReactHookForm.slug || '');
+    formData.append('shortdescription', formDataFromReactHookForm.shortdescription || '');
+    formData.append('longdescription', formDataFromReactHookForm.longdescription || '');
+    formData.append('projectId', formDataFromReactHookForm.projectId || '');
+    formData.append('seotitle', formDataFromReactHookForm.seotitle || '');
+    formData.append('seodescription', formDataFromReactHookForm.seodescription || '');
+    formData.append('seokeywords', formDataFromReactHookForm.seokeywords || '');
+    formData.append('ogimage', ogImageFile);
+
+    try {
+      await axios.post(`${process.env.NEXT_PUBLIC_BACKEND_URL}/createprojecttype`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        withCredentials: true,
+      });
+
+      toast.success('Project type created successfully');
+      reset();
+      setOgImagePreview(null);
+    } catch (error) {
+      console.error(error?.response?.data || error.message);
+      toast.error('Failed to create project type');
     }
   };
-
-  const onSubmit = async (data) => {
-    if (editorRef.current) {
-      const output = await editorRef.current.save();
-      data.bigDescription = output;
-    }
-
-    console.log('New Project Type:', data);
-    // Send data to backend
-  };
-
-  const dummyProjects = ['Clean Water', 'Education Aid', 'Medical Mission'];
 
   return (
-    <div className="max-w-7xl mx-auto mt-3">
-      <h1 className="text-3xl font-bold mb-8 text-left">Add New Project Type</h1>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <div className="max-w-4xl mx-auto py-10 px-4">
+      <h1 className="text-3xl font-bold mb-8">Create New Project Type</h1>
+      <form onSubmit={handleSubmit((data, e) => onSubmit(data, e))} className="space-y-8">
 
         {/* Title */}
-        <div className="space-y-2">
-          <Label>Title</Label>
-          <Input className="bg-white" {...register('title', { required: true })} placeholder="Enter project type title" />
-          {errors.title && <p className="text-red-600 text-sm">Title is required.</p>}
+        <div>
+          <Label htmlFor="title">Title</Label>
+          <Input id="title" {...register('title')} required className="bg-white mt-1" />
         </div>
 
         {/* Slug */}
-        <div className="space-y-2">
-          <Label>Slug</Label>
-          <Input className="bg-white" {...register('slug', { required: true })} />
-        </div>
-
-        {/* Multiple Project Selection */}
-        <div className="space-y-2">
-          <Label>Select Projects</Label>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            {dummyProjects.map((proj) => (
-              <label key={proj} className="flex items-center space-x-2">
-                <input type="checkbox" value={proj} {...register('selectedProjects')} />
-                <span>{proj}</span>
-              </label>
-            ))}
-          </div>
+        <div>
+          <Label htmlFor="slug">Slug</Label>
+          <Input id="slug" {...register('slug')} required className="bg-white mt-1" />
         </div>
 
         {/* Short Description */}
-        <div className="space-y-2">
-          <Label>Short Description</Label>
-          <Textarea {...register('shortDescription')} rows={3} />
-        </div>
-
-        {/* Big Description */}
         <div>
-          <Label className="mb-3">Big Description</Label>
-          <div id="editorjs" className="min-h-[100px] border rounded-md p-4 shadow-sm bg-white" />
+          <Label htmlFor="shortdescription">Short Description</Label>
+          <Textarea id="shortdescription" {...register('shortdescription')} rows={3} className="bg-white mt-1" />
         </div>
 
-        {/* Upload Images */}
-        <div className="space-y-2">
-          <Label>Upload Images</Label>
-          {imageFields.map((field, index) => (
-            <div key={field.id} className="flex items-center space-x-2 mb-2">
-              <Input type="file" accept="image/*" onChange={(e) => handleImageChange(e, index)} />
-              {imagePreviews[index] && (
-                <div className="w-24 h-16 relative border rounded overflow-hidden">
-                  <Image src={imagePreviews[index]} alt="Preview" fill className="object-cover" />
-                </div>
-              )}
-              {index > 0 && (
-                <Button type="button" variant="destructive" onClick={() => {
-                  removeImage(index);
-                  const previews = [...imagePreviews];
-                  previews.splice(index, 1);
-                  setImagePreviews(previews);
-                }}>-</Button>
-              )}
-            </div>
-          ))}
-          <Button type="button" onClick={() => appendImage({ file: null })}>+ Add More Image</Button>
+        {/* Long Description */}
+        <div>
+          <Label htmlFor="longdescription">Long Description</Label>
+          <Textarea id="longdescription" {...register('longdescription')} rows={4} className="bg-white mt-1" />
         </div>
 
-        {/* Upload Videos (YouTube) */}
-        <div className="space-y-2">
-          <Label>YouTube Videos</Label>
-          {videoFields.map((field, index) => (
-            <div key={field.id} className="flex items-center space-x-2 mb-2">
-              <Input {...register(`videos.${index}.url`, { required: index === 0 })} placeholder="Enter YouTube video URL" />
-              {index > 0 && (
-                <Button type="button" variant="destructive" onClick={() => removeVideo(index)}>-</Button>
-              )}
-            </div>
-          ))}
-          <Button type="button" onClick={() => appendVideo({ url: '' })}>+ Add More Video</Button>
+        {/* Select Project */}
+        <div>
+          <Label htmlFor="projectId">Select Project</Label>
+          <select id="projectId" {...register('projectId')} required className="bg-white mt-1 px-3 py-2 border rounded w-full">
+            <option value="">-- Select Project --</option>
+            {projects.map((proj) => (
+              <option key={proj.id} value={proj.id}>
+                {proj.title} (ID: {proj.id})
+              </option>
+            ))}
+          </select>
         </div>
 
-        {/* SEO Section */}
-        <div className="pt-6 border-t">
-          <h2 className="text-lg font-semibold mb-4">SEO Details</h2>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>OG Title</Label>
-              <Input className="bg-white" {...register('ogTitle')} />
-            </div>
-            <div className="space-y-2">
-              <Label>OG Description</Label>
-              <Textarea {...register('ogDescription')} />
-            </div>
-            <div className="space-y-2">
-              <Label>OG Image</Label>
-              <Input type="file" accept="image/*" onChange={handleOgImageChange} />
-              {ogImagePreview && (
-                <div className="w-48 h-32 mt-2 relative rounded border shadow overflow-hidden">
-                  <Image src={ogImagePreview} alt="OG Preview" fill className="object-cover" />
-                </div>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label>Keywords</Label>
-              <Input className="bg-white" {...register('keywords')} placeholder="Comma separated (e.g. water, education)" />
-            </div>
-          </div>
+        {/* SEO Title */}
+        <div>
+          <Label htmlFor="seotitle">SEO Title</Label>
+          <Input id="seotitle" {...register('seotitle')} className="bg-white mt-1" />
+        </div>
+
+        {/* SEO Description */}
+        <div>
+          <Label htmlFor="seodescription">SEO Description</Label>
+          <Textarea id="seodescription" {...register('seodescription')} rows={3} className="bg-white mt-1" />
+        </div>
+
+        {/* SEO Keywords */}
+        <div>
+          <Label htmlFor="seokeywords">SEO Keywords</Label>
+          <Input id="seokeywords" {...register('seokeywords')} placeholder="Comma separated (e.g. water, aid)" className="bg-white mt-1" />
+        </div>
+
+        {/* OG Image */}
+        <div>
+          <Label htmlFor="ogimage">OG Image</Label>
+          <Input type="file" id="ogimage" name="ogimage" accept="image/*" onChange={handleOgImagePreview} className="bg-white mt-1" />
+          {ogImagePreview && (
+            <Image src={ogImagePreview} alt="OG Preview" width={400} height={250} className="mt-3 rounded object-cover" />
+          )}
         </div>
 
         {/* Submit Button */}
-        <Button type="submit" className="w-full bg-green-600 hover:bg-green-700">Create Project Type</Button>
+        <div>
+          <Button type="submit" className="w-full py-5 bg-green-600 hover:bg-green-700 text-white text-lg">
+            Create Project Type
+          </Button>
+        </div>
+
       </form>
     </div>
   );

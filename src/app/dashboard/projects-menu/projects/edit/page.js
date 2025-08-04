@@ -1,59 +1,92 @@
 'use client';
 
-import { useForm, useFieldArray } from 'react-hook-form';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
+import axios from 'axios';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
-import { Plus, Minus } from 'lucide-react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import decodeHtml from '@/lib/decodeHtml';
 
 export default function EditProjectPage() {
+  const { register, handleSubmit, setValue, control } = useForm();
+  const selectedInitiativeId = useWatch({ control, name: 'initiativeid' });
+  const [initiatives, setInitiatives] = useState([]);
   const [mainImagePreview, setMainImagePreview] = useState(null);
+  const [filePreview, setFilePreview] = useState(null);
+  const [projectId, setProjectId] = useState(null);
+  const [previousInitiativeId, setPreviousInitiativeId] = useState(null);
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
-  // Stable default values using useMemo
-  const defaultValues = useMemo(() => ({
-    title: 'Clean Water Initiative',
-    shortDescription: 'Providing clean water in rural areas.',
-    mainVideo: 'https://youtube.com/example',
-    cards: [
-      { number: '500', suffix: '+', text: 'Wells Built', icon: '🛠️' },
-      { number: '10000', suffix: '+', text: 'People Helped', icon: '💧' },
-    ],
-    photoGallery: [{ file: null }, { file: null }],
-    videoGallery: [
-      { url: 'https://youtube.com/v1' },
-      { url: 'https://youtube.com/v2' },
-    ],
-    faq: [
-      { question: 'What is the goal?', answer: 'Provide clean water access.' },
-      { question: 'How can I help?', answer: 'Donate or volunteer.' },
-    ],
-    whatWeDo: {
-      description: 'We drill wells and purify water.',
-      media: null,
-    },
-    ProjectImportance: {
-      description: 'Access to water is a basic human right.',
-      media: null,
-    },
-  }), []);
+  const [storedInitiativeId, setStoredInitiativeId] = useState(''); // used to set after initiatives load
 
-  const { register, handleSubmit, control, reset } = useForm({
-    defaultValues,
-  });
-
-  const cardArray = useFieldArray({ control, name: 'cards' });
-  const photoArray = useFieldArray({ control, name: 'photoGallery' });
-  const videoArray = useFieldArray({ control, name: 'videoGallery' });
-  const faqArray = useFieldArray({ control, name: 'faq' });
+  // Load project and initiatives
+  useEffect(() => {
+    const id = searchParams.get('id');
+    if (id) {
+      setProjectId(id);
+      fetchProject(id);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
-    reset(defaultValues);
-  }, [reset, defaultValues]);
+    if (storedInitiativeId && initiatives.length > 0) {
+      // Set after initiatives are loaded
+      setValue('initiativeid', storedInitiativeId);
+    }
+  }, [storedInitiativeId, initiatives, setValue]);
 
-  const handleMainImage = (e) => {
+  const fetchProject = async (id) => {
+    try {
+      const res = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/project/${id}`, {
+        withCredentials: true,
+      });
+
+      const data = res.data.project;
+
+      setValue('title', decodeHtml(data.title));
+      setValue('description', decodeHtml(data.description));
+      setValue('videourl', data.videourl || '');
+      setValue('importance', decodeHtml(data.importance));
+      setValue('whatwedo', decodeHtml(data.whatwedo));
+
+      const initiativeId = data.initiatives?.[0]?.id?.toString() || '';
+      setStoredInitiativeId(initiativeId);
+      setPreviousInitiativeId(initiativeId);
+
+      if (data.imagepath) {
+        setMainImagePreview(`${process.env.NEXT_PUBLIC_BACKEND_URL}/${data.imagepath.replace(/\\/g, '/')}`);
+      }
+
+      if (data.filepath) {
+        setFilePreview(`${process.env.NEXT_PUBLIC_BACKEND_URL}/${data.filepath.replace(/\\/g, '/')}`);
+      }
+
+      fetchInitiatives();
+    } catch (err) {
+      toast.error('Failed to load project data');
+      console.error(err);
+    }
+  };
+
+  const fetchInitiatives = async () => {
+    try {
+      const res = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/allinitiative`, {
+        withCredentials: true,
+      });
+      setInitiatives(res.data.data || []);
+    } catch (err) {
+      toast.error('Failed to load initiatives');
+      console.error(err);
+    }
+  };
+
+  const handleMainImagePreview = (e) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
@@ -62,152 +95,150 @@ export default function EditProjectPage() {
     }
   };
 
-  const onSubmit = (data) => {
-    console.log('Edited data:', data);
-    // Submit update API call here
+  const handleFilePreview = (e) => {
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith('image')) {
+      const reader = new FileReader();
+      reader.onloadend = () => setFilePreview(reader.result);
+      reader.readAsDataURL(file);
+    } else {
+      setFilePreview(null);
+    }
+  };
+
+  const onSubmit = async (data) => {
+    const formData = new FormData();
+    formData.append('id', projectId);
+    formData.append('title', data.title);
+    formData.append('description', data.description);
+    formData.append('videourl', data.videourl);
+    formData.append('importance', data.importance);
+    formData.append('whatwedo', data.whatwedo);
+
+    if (data.main && data.main[0]) {
+      formData.append('main', data.main[0]);
+    }
+
+    if (data.files && data.files[0]) {
+      formData.append('files', data.files[0]);
+    }
+
+    try {
+      // Step 1: Update project base data
+      await axios.post(`${process.env.NEXT_PUBLIC_BACKEND_URL}/editproject`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        withCredentials: true,
+      });
+
+      const newInitiativeId = data.initiativeid?.toString();
+
+      // Step 2: Only if initiative changed, delete + re-add
+      if (previousInitiativeId !== newInitiativeId) {
+        if (previousInitiativeId) {
+          await axios.post(
+            `${process.env.NEXT_PUBLIC_BACKEND_URL}/deleteinitproject`,
+            {
+              projectid: projectId,
+              initiativeid: previousInitiativeId,
+            },
+            { withCredentials: true }
+          );
+        }
+
+        if (newInitiativeId) {
+          await axios.post(
+            `${process.env.NEXT_PUBLIC_BACKEND_URL}/addinitiativeproject`,
+            {
+              projectid: projectId,
+              initiativeid: newInitiativeId,
+            },
+            { withCredentials: true }
+          );
+        }
+      }
+
+      toast.success('Project updated successfully');
+      router.push('/dashboard/projects-menu/projects/');
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to update project');
+    }
   };
 
   return (
-    <div className="max-w-5xl mx-auto py-10 px-4">
-      <h1 className="text-3xl font-bold mb-10">Edit Project</h1>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-10">
+    <div className="max-w-4xl mx-auto py-10 px-4">
+      <h1 className="text-3xl font-bold mb-8">Edit Project</h1>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
 
-        {/* Project Title */}
+        {/* Title */}
         <div>
-          <Label className="mb-2" htmlFor="title">Project Title</Label>
-          <Input {...register('title')} className="bg-white" />
+          <Label htmlFor="title">Title</Label>
+          <Input id="title" {...register('title')} required className="bg-white mt-1" />
         </div>
 
-        {/* Short Description */}
+        {/* Description */}
         <div>
-          <Label className="mb-2" htmlFor="shortDescription">Short Description</Label>
-          <Textarea {...register('shortDescription')} rows={3} className="bg-white" />
+          <Label htmlFor="description">Description</Label>
+          <Textarea id="description" {...register('description')} rows={4} required className="bg-white mt-1" />
         </div>
 
-        {/* Main Image & Video */}
-        <div className="grid md:grid-cols-2 gap-6">
-          <div>
-            <Label className="mb-2" htmlFor="mainImage">Main Image</Label>
-            <Input type="file" accept="image/*" onChange={handleMainImage} className="bg-white" />
-            {mainImagePreview && (
-              <div className="mt-4 border p-2 rounded">
-                <Image src={mainImagePreview} alt="Main Preview" width={400} height={300} className="rounded object-cover w-full h-48" />
-              </div>
-            )}
-          </div>
-          <div>
-            <Label className="mb-2" htmlFor="mainVideo">Main Video</Label>
-            <Input {...register('mainVideo')} className="bg-white" />
-          </div>
+        {/* Main Image Upload */}
+        <div>
+          <Label htmlFor="main">Main Image</Label>
+          <Input type="file" id="main" {...register('main')} accept="image/*" onChange={handleMainImagePreview} className="bg-white mt-1" />
+          {mainImagePreview && (
+            <Image src={mainImagePreview} alt="Main Preview" width={400} height={250} className="mt-3 rounded object-cover" />
+          )}
         </div>
 
-        {/* Impact Cards */}
+        {/* Video URL */}
         <div>
-          <Label className="mb-2">Impact Cards</Label>
-          {cardArray.fields.map((field, index) => (
-            <div key={field.id} className="mb-4 border p-4 rounded bg-gray-50">
-              <div className="flex justify-between mb-3">
-                <span>Card #{index + 1}</span>
-                {index > 0 && (
-                  <Button type="button" size="sm" variant="destructive" onClick={() => cardArray.remove(index)}>
-                    <Minus className="w-4 h-4" />
-                  </Button>
-                )}
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <Input {...register(`cards.${index}.number`)} placeholder="Number" className="bg-white" />
-                <Input {...register(`cards.${index}.suffix`)} placeholder="Suffix" className="bg-white" />
-                <Input {...register(`cards.${index}.text`)} placeholder="Text" className="bg-white" />
-                <Input {...register(`cards.${index}.icon`)} placeholder="Icon" className="bg-white" />
-              </div>
-            </div>
-          ))}
-          <Button type="button" onClick={() => cardArray.append({ number: '', suffix: '', text: '', icon: '' })} variant="outline">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Card
-          </Button>
+          <Label htmlFor="videourl">Main Video URL</Label>
+          <Input id="videourl" {...register('videourl')} placeholder="https://youtube.com/..." className="bg-white mt-1" />
         </div>
 
-        {/* Project Importance */}
+        {/* Importance */}
         <div>
-          <Label className="mb-2" htmlFor="ProjectImportanceDesc">Importance of the Project</Label>
-          <Textarea {...register('ProjectImportance.description')} rows={4} className="bg-white" />
+          <Label htmlFor="importance">Importance</Label>
+          <Textarea id="importance" {...register('importance')} rows={3} className="bg-white mt-1" />
         </div>
 
         {/* What We Do */}
-        <div className='bg-gray-50 p-4 rounded'>
-          <Label className="mb-2" htmlFor="whatWeDoDesc">What We Do</Label>
-          <div>
-          <Textarea {...register('whatWeDo.description')} rows={4} className="bg-white" />
-          <Label className="mb-2 block mt-4" htmlFor="whatWeDoMedia">Upload Media (Image/Video)</Label>
-          <Input type="file" accept="image/*,video/*" {...register('whatWeDo.media')} className="bg-white" />
-        </div>
+        <div>
+          <Label htmlFor="whatwedo">What We Do</Label>
+          <Textarea id="whatwedo" {...register('whatwedo')} rows={3} className="bg-white mt-1" />
         </div>
 
-        {/* Photo Gallery */}
+        {/* File Upload */}
         <div>
-          <Label className="mb-2">Photo Gallery</Label>
-          {photoArray.fields.map((field, index) => (
-            <div key={field.id} className="flex items-center gap-2 mb-2">
-              <Input type="file" accept="image/*" {...register(`photoGallery.${index}.file`)} className="bg-white" />
-              {index > 0 && (
-                <Button type="button" size="sm" variant="destructive" onClick={() => photoArray.remove(index)}>
-                  <Minus className="w-4 h-4" />
-                </Button>
-              )}
-            </div>
-          ))}
-          <Button type="button" onClick={() => photoArray.append({ file: null })} variant="outline">
-            <Plus className="h-4 w-4 mr-2" />
-            Add More Images
-          </Button>
+          <Label htmlFor="files">Upload File (Image/Video)</Label>
+          <Input type="file" id="files" {...register('files')} accept="image/*,video/*" onChange={handleFilePreview} className="bg-white mt-1" />
+          {filePreview && (
+            <Image src={filePreview} alt="Media Preview" width={400} height={250} className="mt-3 rounded object-cover" />
+          )}
         </div>
 
-        {/* Video Gallery */}
+        {/* Initiative Dropdown */}
         <div>
-          <Label className="mb-2">Video Gallery</Label>
-          {videoArray.fields.map((field, index) => (
-            <div key={field.id} className="flex items-center gap-2 mb-2">
-              <Input {...register(`videoGallery.${index}.url`)} placeholder="YouTube URL" className="bg-white" />
-              {index > 0 && (
-                <Button type="button" size="sm" variant="destructive" onClick={() => videoArray.remove(index)}>
-                  <Minus className="w-4 h-4" />
-                </Button>
-              )}
-            </div>
-          ))}
-          <Button type="button" onClick={() => videoArray.append({ url: '' })} variant="outline">
-            <Plus className="h-4 w-4 mr-2" />
-            Add More Videos
-          </Button>
+          <Label htmlFor="initiativeid">Select Initiative</Label>
+          <select
+            id="initiativeid"
+            {...register('initiativeid')}
+            className="bg-white mt-1 px-3 py-2 border rounded w-full"
+            required
+          >
+            <option value="">-- Select Initiative --</option>
+            {initiatives.map((item) => (
+              <option key={item.id} value={item.id.toString()}>
+                {item.name}
+              </option>
+            ))}
+          </select>
         </div>
 
-        {/* FAQs */}
+        {/* Submit Button */}
         <div>
-          <Label className="mb-2">FAQs</Label>
-          {faqArray.fields.map((field, index) => (
-            <div key={field.id} className="mb-4 border p-4 rounded bg-gray-50">
-              <div className="flex justify-between mb-2">
-                <span>FAQ #{index + 1}</span>
-                {index > 0 && (
-                  <Button type="button" size="sm" variant="destructive" onClick={() => faqArray.remove(index)}>
-                    <Minus className="w-4 h-4" />
-                  </Button>
-                )}
-              </div>
-              <Input {...register(`faq.${index}.question`)} placeholder="Question" className="bg-white mb-2" />
-              <Textarea {...register(`faq.${index}.answer`)} rows={2} placeholder="Answer" className="bg-white" />
-            </div>
-          ))}
-          <Button type="button" onClick={() => faqArray.append({ question: '', answer: '' })} variant="outline">
-            <Plus className="h-4 w-4 mr-2" />
-            Add FAQ
-          </Button>
-        </div>
-
-        {/* Submit */}
-        <div>
-          <Button type="submit" className="w-full py-6 text-lg font-semibold bg-green-600 hover:bg-green-700">
+          <Button type="submit" className="w-full py-5 bg-blue-600 hover:bg-blue-700 text-white text-lg">
             Update Project
           </Button>
         </div>

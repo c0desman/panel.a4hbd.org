@@ -1,8 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
+import axios from 'axios';
 import { useForm } from 'react-hook-form';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -17,9 +20,13 @@ import {
 } from '@/components/ui/select';
 
 export default function AddStoryPage() {
-  const editorRef = useRef(null);
+  const router = useRouter();
+
   const [imagePreview, setImagePreview] = useState(null);
   const [ogImagePreview, setOgImagePreview] = useState(null);
+  const [projects, setProjects] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [partners, setPartners] = useState([]);
 
   const {
     register,
@@ -34,9 +41,9 @@ export default function AddStoryPage() {
       project: '',
       category: '',
       donor: '',
+      content: '',
       ogTitle: '',
       ogDescription: '',
-      ogImage: '',
       keywords: '',
     },
   });
@@ -53,57 +60,32 @@ export default function AddStoryPage() {
     }
   }, [postTitle, setValue]);
 
-  // EditorJS initialization
-  // This effect runs only on the client side
   useEffect(() => {
-    if (typeof window === 'undefined') return; // Critical SSR check
+    const fetchOptions = async () => {
+      try {
+        const [projectsRes, categoriesRes, partnersRes] = await Promise.all([
+          axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/allprojects`),
+          axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/allcatagories`),
+          axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/allpartners`),
+        ]);
 
-    const initializeEditor = async () => {
-      // Dynamically import EditorJS and tools
-      const EditorJS = (await import('@editorjs/editorjs')).default;
-      const Header = (await import('@editorjs/header')).default;
-      const List = (await import('@editorjs/list')).default;
-      const Embed = (await import('@editorjs/embed')).default;
-      const ImageTool = (await import('@editorjs/image')).default;
-      const Paragraph = (await import('@editorjs/paragraph')).default;
-
-      if (!editorRef.current) {
-        editorRef.current = new EditorJS({
-          holder: 'editorjs',
-          tools: {
-            header: Header,
-            list: List,
-            paragraph: Paragraph,
-            embed: { class: Embed, inlineToolbar: true },
-            image: {
-              class: ImageTool,
-              config: {
-                endpoints: {
-                  byFile: '/upload-image',
-                  byUrl: '/fetch-image',
-                },
-              },
-            },
-          },
-          placeholder: 'Write your story content here...',
-        });
+        setProjects(projectsRes.data.data || []);
+        setCategories(categoriesRes.data.data || []);
+        setPartners(partnersRes.data.data || []);
+      } catch (error) {
+        toast.error('Failed to load dropdown data');
+        console.error('Dropdown fetch error:', error);
       }
     };
 
-    initializeEditor();
-
-    return () => {
-      if (editorRef.current?.destroy) {
-        editorRef.current.destroy();
-        editorRef.current = null;
-      }
-    };
+    fetchOptions();
   }, []);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       setImagePreview(URL.createObjectURL(file));
+      setValue('image', file);
     }
   };
 
@@ -116,18 +98,36 @@ export default function AddStoryPage() {
   };
 
   const onSubmit = async (data) => {
-    if (editorRef.current) {
-      const output = await editorRef.current.save();
-      data.content = output;
+    const formData = new FormData();
+    formData.append('title', data.postTitle);
+    formData.append('slug', data.slug);
+    formData.append('content', data.content);
+    formData.append('projectId', data.project);
+    formData.append('categoryId', data.category);
+    formData.append('partnerId', data.donor);
+    formData.append('ogtitle', data.ogTitle);
+    formData.append('ogdescription', data.ogDescription);
+    formData.append('keywords', data.keywords);
+    if (data.image) formData.append('image', data.image);
+    if (data.ogImage) formData.append('ogimage', data.ogImage);
+
+    try {
+      await axios.post(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/createstory`,
+        formData,
+        {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          withCredentials: true,
+        }
+      );
+
+      toast.success('Story published successfully!');
+      router.push('/dashboard/stories-list/');
+    } catch (error) {
+      toast.error('Failed to publish story');
+      console.error('Story creation error:', error);
     }
-
-    console.log('New Story Data:', data);
-    // Send data to backend via fetch or axios here
   };
-
-  const dummyProjects = ['Clean Water', 'Education Aid', 'Medical Mission'];
-  const dummyCategories = ['Story', 'Update'];
-  const dummyDonors = ['Unicef', 'Sourire d\'Orphaline', 'World Vision'];
 
   return (
     <div className="max-w-7xl mx-auto mt-3">
@@ -157,9 +157,9 @@ export default function AddStoryPage() {
                 <SelectValue placeholder="Select Project" />
               </SelectTrigger>
               <SelectContent className="w-full bg-white">
-                {dummyProjects.map((proj) => (
-                  <SelectItem key={proj} value={proj}>
-                    {proj}
+                {projects.map((proj) => (
+                  <SelectItem key={proj.id} value={proj.id.toString()}>
+                    {proj.title}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -173,9 +173,9 @@ export default function AddStoryPage() {
                 <SelectValue placeholder="Select Category" />
               </SelectTrigger>
               <SelectContent className="w-full bg-white">
-                {dummyCategories.map((cat) => (
-                  <SelectItem key={cat} value={cat}>
-                    {cat}
+                {categories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id.toString()}>
+                    {cat.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -184,14 +184,14 @@ export default function AddStoryPage() {
 
           <div className="space-y-2">
             <Label>Donors</Label>
-            <Select onValueChange={(val) => setValue('donors', val)}>
+            <Select onValueChange={(val) => setValue('donor', val)}>
               <SelectTrigger className="w-full bg-white">
-                <SelectValue placeholder="Select Donors" />
+                <SelectValue placeholder="Select Donor" />
               </SelectTrigger>
               <SelectContent className="w-full bg-white">
-                {dummyDonors.map((don) => (
-                  <SelectItem key={don} value={don}>
-                    {don}
+                {partners.map((don) => (
+                  <SelectItem key={don.id} value={don.id.toString()}>
+                    {don.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -200,7 +200,7 @@ export default function AddStoryPage() {
         </div>
 
         <div className="space-y-2">
-          <Label>Upload Image</Label>
+          <Label>Upload Main Image</Label>
           <Input type="file" onChange={handleImageChange} />
           {imagePreview && (
             <div className="w-48 h-32 mt-2 relative rounded border shadow overflow-hidden">
@@ -214,12 +214,17 @@ export default function AddStoryPage() {
           )}
         </div>
 
-        <div>
-          <Label className="mb-2">Content</Label>
-          <div
-            id="editorjs"
-            className="min-h-[300px] border rounded-md p-4 shadow-sm bg-white"
+        <div className="space-y-2">
+          <Label>Content</Label>
+          <Textarea
+            {...register('content', { required: true })}
+            placeholder="Write the story here..."
+            rows={8}
+            className="bg-white"
           />
+          {errors.content && (
+            <p className="text-red-600 text-sm">Content is required.</p>
+          )}
         </div>
 
         <div className="pt-6 border-t">
@@ -231,7 +236,7 @@ export default function AddStoryPage() {
             </div>
             <div className="space-y-2">
               <Label>OG Description</Label>
-              <Textarea {...register('ogDescription')} />
+              <Textarea className="bg-white" {...register('ogDescription')} />
             </div>
             <div className="space-y-2">
               <Label>Upload OG Image</Label>
