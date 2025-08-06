@@ -1,4 +1,4 @@
-This is a Nextjs application to manage the panel for Aid For Humanity.
+Project for Aid For Humanity
 
 ## Getting Started
 
