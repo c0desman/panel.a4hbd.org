@@ -14,8 +14,20 @@ config({ path: envPath });
 const nextConfig = {
   // Image configuration
   images: {
-    domains: ['localhost'], // Allow localhost for local development
     remotePatterns: [
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '4000',
+        pathname: '/uploads/**',
+      },
+      // Add other patterns if needed for production
+      {
+        protocol: 'https',
+        hostname: 'api.a4hbd.org',
+        port: '',
+        pathname: '/uploads/**',
+      },
       {
         protocol: 'https',
         hostname: 'i.pravatar.cc',
