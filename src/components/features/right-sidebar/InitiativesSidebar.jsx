@@ -24,6 +24,23 @@ export default function InitiativesSidebar({
 
   const isEdit = !!initiative;
 
+  /**
+   * Generate slug from name/title
+   * Converts: "Clean Water Initiative" -> "clean-water-initiative"
+   * @param {string} name - The name/title to convert to slug
+   * @returns {string} - Generated slug
+   */
+  const generateSlug = (name) => {
+    if (!name) return "";
+    return name
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, '') // Remove special characters except hyphens
+      .replace(/\s+/g, '-') // Replace spaces with hyphens
+      .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+      .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
+  };
+
   useEffect(() => {
     if (open) {
       setName(initiative?.name || "");
@@ -35,6 +52,19 @@ export default function InitiativesSidebar({
       setFile(null);
     }
   }, [initiative, open]);
+
+  /**
+   * Handle name input change and auto-generate slug
+   * @param {Event} e - Input change event
+   */
+  const handleNameChange = (e) => {
+    const newName = e.target.value;
+    setName(newName);
+    
+    // Auto-generate slug from name
+    const newSlug = generateSlug(newName);
+    setSlug(newSlug);
+  };
 
   const handleFile = (e) => {
     const f = e.target.files[0];
@@ -128,12 +158,19 @@ export default function InitiativesSidebar({
 
         <div className="space-y-1">
           <Label>Name</Label>
-          <Input value={name} onChange={(e) => setName(e.target.value)} />
+          <Input 
+            value={name} 
+            onChange={handleNameChange}
+          />
         </div>
 
         <div className="space-y-1">
           <Label>Slug</Label>
-          <Input value={slug} onChange={(e) => setSlug(e.target.value)} />
+          <Input 
+            value={slug} 
+            onChange={(e) => setSlug(e.target.value)}
+            placeholder="Auto-generated from name (editable)"
+          />
         </div>
 
         <div className="space-y-1">

@@ -12,9 +12,28 @@ import { toast } from 'sonner';
 import decodeHtml from '@/lib/decodeHtml';
 
 export default function AddProjectTypePage() {
-  const { register, handleSubmit, reset } = useForm();
+  const { register, handleSubmit, reset, watch, setValue } = useForm();
   const [projects, setProjects] = useState([]);
   const [ogImagePreview, setOgImagePreview] = useState(null);
+  const [isSlugManualEdit, setIsSlugManualEdit] = useState(false);
+
+  // Watch the title field to auto-generate slug
+  const titleValue = watch('title');
+  
+  // Effect to auto-generate slug from title
+  useEffect(() => {
+    if (titleValue && !isSlugManualEdit) {
+      const generatedSlug = titleValue
+        .toLowerCase()
+        .trim()
+        .replace(/[^\w\s-]/g, '') // Remove special characters except hyphens
+        .replace(/\s+/g, '-') // Replace spaces with hyphens
+        .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+        .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
+      
+      setValue('slug', generatedSlug);
+    }
+  }, [titleValue, isSlugManualEdit, setValue]);
 
   useEffect(() => {
     async function fetchProjects() {
@@ -72,6 +91,7 @@ export default function AddProjectTypePage() {
       toast.success('Project type created successfully');
       reset();
       setOgImagePreview(null);
+      setIsSlugManualEdit(false);
     } catch (error) {
       console.error(error?.response?.data || error.message);
       toast.error('Failed to create project type');
@@ -92,7 +112,13 @@ export default function AddProjectTypePage() {
         {/* Slug */}
         <div>
           <Label htmlFor="slug">Slug</Label>
-          <Input id="slug" {...register('slug')} required className="bg-white mt-1" />
+          <Input 
+            id="slug" 
+            {...register('slug')} 
+            required 
+            className="bg-white mt-1"
+            onChange={() => setIsSlugManualEdit(true)}
+          />
         </div>
 
         {/* Short Description */}

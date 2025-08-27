@@ -25,11 +25,32 @@ export default function PartnerSidebar({
     handleSubmit,
     reset,
     setValue,
+    watch,
     formState: { errors },
   } = useForm();
 
   const [previewImage, setPreviewImage] = useState("");
   const [selectedFile, setSelectedFile] = useState(null);
+
+  // Watch the name field for auto-slug generation
+  const watchedName = watch("name");
+
+  /**
+   * Generate slug from name/title
+   * Converts: "IHHH Foundation" -> "ihhh-foundation"
+   * @param {string} name - The name/title to convert to slug
+   * @returns {string} - Generated slug
+   */
+  const generateSlug = (name) => {
+    if (!name) return "";
+    return name
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, '') // Remove special characters except hyphens
+      .replace(/\s+/g, '-') // Replace spaces with hyphens
+      .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+      .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
+  };
 
   useEffect(() => {
     if (partner) {
@@ -46,6 +67,17 @@ export default function PartnerSidebar({
       setPreviewImage("");
     }
   }, [partner, open, reset]);
+
+  /**
+   * Auto-generate slug when name changes
+   * Only generates slug if current slug is empty or matches the previous auto-generated slug
+   */
+  useEffect(() => {
+    if (watchedName && actionType !== 'view') {
+      const newSlug = generateSlug(watchedName);
+      setValue("slug", newSlug);
+    }
+  }, [watchedName, setValue, actionType]);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -124,7 +156,10 @@ export default function PartnerSidebar({
 
             <div>
               <Label className='mb-2'>Slug</Label>
-              <Input {...register("slug", { required: "Slug is required" })} />
+              <Input 
+                {...register("slug", { required: "Slug is required" })} 
+                placeholder="Auto-generated from name (editable)"
+              />
               {errors.slug && <p className="text-red-500 text-sm">{errors.slug.message}</p>}
             </div>
 

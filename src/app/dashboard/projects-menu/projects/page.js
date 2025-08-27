@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Eye, Pencil, Trash2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -20,7 +20,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { toast } from 'sonner';
+import { toast } from "sonner";
 import ConfirmDialog from "@/components/features/popup/ConfirmDialog";
 
 // Decode HTML entities like &#x2F; to /
@@ -46,7 +46,10 @@ export default function ProjectsListPage() {
   const [initiatives, setInitiatives] = useState([]);
   const [search, setSearch] = useState("");
   const [selectedInitiative, setSelectedInitiative] = useState("all");
-  const [confirmDialog, setConfirmDialog] = useState({ open: false, projectId: null });
+  const [confirmDialog, setConfirmDialog] = useState({
+    open: false,
+    projectId: null,
+  });
 
   const [pagination, setPagination] = useState({
     totalItems: 0,
@@ -55,68 +58,65 @@ export default function ProjectsListPage() {
     pageSize: 10,
   });
 
-  // Fetch all projects initially
+  // Fetch projects from backend search endpoint
   const fetchProjects = async () => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/projects`, {
-        credentials: "include",
+      const params = new URLSearchParams({
+        page: pagination.currentPage,
+        limit: pagination.pageSize,
+        search: search.trim() || " ", // <-- send a space if empty
       });
+
+      if (selectedInitiative !== "all") params.append("initiative", selectedInitiative);
+
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/projects/search?${params.toString()}`,
+        { credentials: "include" }
+      );
       const data = await res.json();
 
       if (res.ok) {
         setProjects(data.projects || []);
         setPagination((prev) => ({
           ...prev,
-          totalItems: data.pagination?.totalItems || data.projects.length,
+          totalItems: data.pagination?.totalItems || 0,
           totalPages: data.pagination?.totalPages || 1,
         }));
       } else {
         console.error("Failed to fetch projects:", data.message);
+        toast.error("Failed to fetch projects");
       }
     } catch (err) {
       console.error("Error fetching projects:", err);
+      toast.error("Error fetching projects");
     }
   };
 
+
+  // Fetch initiatives (for filter dropdown)
   const fetchInitiatives = async () => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/allinitiative`, {
-        credentials: "include",
-      });
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/allinitiative`,
+        { credentials: "include" }
+      );
       const data = await res.json();
-
       if (res.ok) {
         setInitiatives(data.data || []);
-      } else {
-        console.error("Failed to fetch initiatives:", data.message);
       }
     } catch (err) {
       console.error("Error fetching initiatives:", err);
     }
   };
 
+  // Trigger fetch on search / initiative / pagination change
   useEffect(() => {
     fetchProjects();
+  }, [search, selectedInitiative, pagination.currentPage, pagination.pageSize]);
+
+  useEffect(() => {
     fetchInitiatives();
   }, []);
-
-  // Filter projects based on search + selected initiative
-  const filteredProjects = useMemo(() => {
-    return projects
-      .filter((project) => {
-        const title = decodeHTMLEntities(project.title || "");
-        const matchesSearch = title.toLowerCase().includes(search.toLowerCase());
-        const matchesInitiative =
-          selectedInitiative === "all" ||
-          (project.initiatives?.[0]?.id?.toString() === selectedInitiative);
-        return matchesSearch && matchesInitiative;
-      });
-  }, [projects, search, selectedInitiative]);
-
-  const paginatedProjects = useMemo(() => {
-    const start = (pagination.currentPage - 1) * pagination.pageSize;
-    return filteredProjects.slice(start, start + pagination.pageSize);
-  }, [filteredProjects, pagination]);
 
   const handleDelete = async (id) => {
     try {
@@ -125,18 +125,15 @@ export default function ProjectsListPage() {
         {
           method: "DELETE",
           credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ id }), // <-- Send the id in body
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id }),
         }
       );
-
       const data = await res.json();
 
       if (res.ok) {
-        fetchProjects(); // Refresh list
         toast.success("Project deleted successfully");
+        fetchProjects();
       } else {
         console.error("Failed to delete project", data.message);
         toast.error("Unable to delete the project");
@@ -145,7 +142,6 @@ export default function ProjectsListPage() {
       console.error("Error deleting project:", err);
       toast.error("Error occurred while deleting the project");
     }
-
     setConfirmDialog({ open: false, projectId: null });
   };
 
@@ -229,7 +225,7 @@ export default function ProjectsListPage() {
             </TableRow>
           </TableHeader>
           <TableBody className="bg-white">
-            {paginatedProjects.map((project, index) => (
+            {projects.map((project, index) => (
               <TableRow key={project.id}>
                 <TableCell className="p-3">
                   {(pagination.currentPage - 1) * pagination.pageSize + index + 1}
@@ -271,7 +267,9 @@ export default function ProjectsListPage() {
                   <Button
                     size="icon"
                     variant="ghost"
-                    onClick={() => setConfirmDialog({ open: true, projectId: project.id })}
+                    onClick={() =>
+                      setConfirmDialog({ open: true, projectId: project.id })
+                    }
                   >
                     <Trash2 className="w-4 h-4 text-red-600" />
                   </Button>
@@ -286,8 +284,8 @@ export default function ProjectsListPage() {
       <div className="flex justify-between items-center mt-4">
         <p className="text-sm text-gray-600">
           Showing {(pagination.currentPage - 1) * pagination.pageSize + 1} to{" "}
-          {Math.min(pagination.currentPage * pagination.pageSize, filteredProjects.length)} of{" "}
-          {filteredProjects.length} entries.
+          {Math.min(pagination.currentPage * pagination.pageSize, pagination.totalItems)} of{" "}
+          {pagination.totalItems} entries.
         </p>
         <div className="flex gap-2">
           <Button

@@ -16,9 +16,37 @@ export default function CategorySidebar({
   onCategoryUpdate,
   onCategoryAdd,
 }) {
-  const { register, handleSubmit, reset, formState: { errors } } = useForm();
+  const { 
+    register, 
+    handleSubmit, 
+    reset, 
+    setValue, 
+    watch, 
+    formState: { errors } 
+  } = useForm();
+  
   const [preview, setPreview] = useState("");
   const [file, setFile] = useState(null);
+
+  // Watch the name field for auto-slug generation
+  const watchedName = watch("name");
+
+  /**
+   * Generate slug from name/title
+   * Converts: "Technology News" -> "technology-news"
+   * @param {string} name - The name/title to convert to slug
+   * @returns {string} - Generated slug
+   */
+  const generateSlug = (name) => {
+    if (!name) return "";
+    return name
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, '') // Remove special characters except hyphens
+      .replace(/\s+/g, '-') // Replace spaces with hyphens
+      .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+      .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
+  };
 
   useEffect(() => {
     if (open) {
@@ -29,6 +57,17 @@ export default function CategorySidebar({
       setFile(null);
     }
   }, [category, open, reset]);
+
+  /**
+   * Auto-generate slug when name changes
+   * Only generates slug if current slug is empty or matches the previous auto-generated slug
+   */
+  useEffect(() => {
+    if (watchedName && open) {
+      const newSlug = generateSlug(watchedName);
+      setValue("slug", newSlug);
+    }
+  }, [watchedName, setValue, open]);
 
   const handleFile = e => {
     const f = e.target.files[0];
@@ -101,7 +140,6 @@ export default function CategorySidebar({
     }
   };
 
-
   if (!open) return null;
 
   return (
@@ -132,7 +170,10 @@ export default function CategorySidebar({
 
         <div className="space-y-1">
           <Label>Slug</Label>
-          <Input {...register("slug", { required: "Slug required" })}/>
+          <Input 
+            {...register("slug", { required: "Slug required" })}
+            placeholder="Auto-generated from name (editable)"
+          />
           {errors.slug && <p className="text-red-600">{errors.slug.message}</p>}
         </div>
 

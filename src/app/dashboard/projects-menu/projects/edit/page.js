@@ -13,17 +13,36 @@ import { toast } from 'sonner';
 import decodeHtml from '@/lib/decodeHtml';
 
 export default function EditProjectPage() {
-  const { register, handleSubmit, setValue, control } = useForm();
+  const { register, handleSubmit, setValue, control, watch } = useForm();
   const selectedInitiativeId = useWatch({ control, name: 'initiativeid' });
   const [initiatives, setInitiatives] = useState([]);
   const [mainImagePreview, setMainImagePreview] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
   const [projectId, setProjectId] = useState(null);
   const [previousInitiativeId, setPreviousInitiativeId] = useState(null);
+  const [isSlugManualEdit, setIsSlugManualEdit] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const [storedInitiativeId, setStoredInitiativeId] = useState(''); // used to set after initiatives load
+
+  // Watch the title field to auto-generate slug
+  const titleValue = watch('title');
+  
+  // Effect to auto-generate slug from title
+  useEffect(() => {
+    if (titleValue && !isSlugManualEdit) {
+      const generatedSlug = titleValue
+        .toLowerCase()
+        .trim()
+        .replace(/[^\w\s-]/g, '') // Remove special characters except hyphens
+        .replace(/\s+/g, '-') // Replace spaces with hyphens
+        .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+        .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
+      
+      setValue('slug', generatedSlug);
+    }
+  }, [titleValue, isSlugManualEdit, setValue]);
 
   // Load project and initiatives
   useEffect(() => {
@@ -50,6 +69,7 @@ export default function EditProjectPage() {
       const data = res.data.project;
 
       setValue('title', decodeHtml(data.title));
+      setValue('slug', data.slug || '');
       setValue('description', decodeHtml(data.description));
       setValue('videourl', data.videourl || '');
       setValue('importance', decodeHtml(data.importance));
@@ -110,6 +130,7 @@ export default function EditProjectPage() {
     const formData = new FormData();
     formData.append('id', projectId);
     formData.append('title', data.title);
+    formData.append('slug', data.slug);
     formData.append('description', data.description);
     formData.append('videourl', data.videourl);
     formData.append('importance', data.importance);
@@ -174,6 +195,18 @@ export default function EditProjectPage() {
         <div>
           <Label htmlFor="title">Title</Label>
           <Input id="title" {...register('title')} required className="bg-white mt-1" />
+        </div>
+
+        {/* Slug */}
+        <div>
+          <Label htmlFor="slug">Slug</Label>
+          <Input 
+            id="slug" 
+            {...register('slug')} 
+            required 
+            className="bg-white mt-1"
+            onChange={() => setIsSlugManualEdit(true)}
+          />
         </div>
 
         {/* Description */}

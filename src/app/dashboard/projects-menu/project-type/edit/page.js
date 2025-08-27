@@ -13,13 +13,30 @@ import { toast } from 'sonner';
 import decodeHtml from '@/lib/decodeHtml';
 
 export default function EditProjectTypePage() {
-  const { register, handleSubmit, setValue } = useForm();
+  const { register, handleSubmit, setValue, watch } = useForm();
   const [projects, setProjects] = useState([]);
   const [ogImagePreview, setOgImagePreview] = useState(null);
   const [projectTypeId, setProjectTypeId] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  // Watch title field for changes
+  const title = watch('title');
+
+  // Auto-generate slug when title changes
+  useEffect(() => {
+    if (title) {
+      const generatedSlug = title
+        .toLowerCase()
+        .trim()
+        .replace(/[^\w\s-]/g, '') // Remove special characters except hyphens
+        .replace(/\s+/g, '-') // Replace spaces with hyphens
+        .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+        .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
+      setValue('slug', generatedSlug);
+    }
+  }, [title, setValue]);
 
   useEffect(() => {
     const id = searchParams.get('id');

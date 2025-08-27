@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { useEffect, useState, useMemo } from "react";
 import axios from "axios";
@@ -29,8 +29,12 @@ export default function UsersPage() {
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState("first_name");
   const [sortOrder, setSortOrder] = useState("asc");
+
+  // pagination state (server-driven)
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarMode, setSidebarMode] = useState("view");
@@ -45,9 +49,14 @@ export default function UsersPage() {
         `${process.env.NEXT_PUBLIC_BACKEND_URL}/users?page=${currentPage}&limit=${rowsPerPage}`,
         { withCredentials: true }
       );
-      setUsers(r.data.data);
+      setUsers(r.data.data || []);
+      setTotalPages(r.data.pagination.totalPages || 1);
+      setTotalItems(r.data.pagination.totalItems || 0);
     } catch {
       toast.error("Failed loading users");
+      setUsers([]);
+      setTotalPages(1);
+      setTotalItems(0);
     } finally {
       setLoading(false);
     }
@@ -57,6 +66,7 @@ export default function UsersPage() {
     if (isAuthenticated) fetchUsers();
   }, [isAuthenticated, currentPage, rowsPerPage]);
 
+  // client-side search & sort only on current page's users
   const filtered = useMemo(() => users.filter(u =>
     `${u.first_name} ${u.last_name}`.toLowerCase().includes(search.toLowerCase()) ||
     u.email.toLowerCase().includes(search.toLowerCase())
@@ -71,13 +81,6 @@ export default function UsersPage() {
     });
     return arr;
   }, [filtered, sortKey, sortOrder]);
-
-  const paginated = useMemo(() => {
-    const start = (currentPage - 1) * rowsPerPage;
-    return sorted.slice(start, start + rowsPerPage);
-  }, [sorted, currentPage, rowsPerPage]);
-
-  const totalPages = Math.ceil(filtered.length / rowsPerPage);
 
   const toggleSort = (k) => {
     if (sortKey === k) setSortOrder(o => o === "asc" ? "desc" : "asc");
@@ -157,7 +160,7 @@ export default function UsersPage() {
                       )
                     : undefined}
                 >
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 cursor-pointer">
                     {col}
                     {sortKey === (
                       col==="Name" ? "first_name"
@@ -172,11 +175,11 @@ export default function UsersPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {paginated.length === 0 ? (
+            {sorted.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="text-center py-8">No users found</TableCell>
               </TableRow>
-            ) : paginated.map(u => {
+            ) : sorted.map(u => {
               const avatarSrc = u.profile?.profilepicture
                 ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/${u.profile.profilepicture.replace(/\\/g,"/")}`
                 : "/images/default-avatar.png";
@@ -217,12 +220,30 @@ export default function UsersPage() {
         </Table>
       </div>
 
-      {paginated.length > 0 && (
-        <div className="mt-4 flex justify-between">
-          <span>Showing { (currentPage-1)*rowsPerPage+1 }–{ Math.min(currentPage*rowsPerPage, filtered.length) } of {filtered.length}</span>
+      {/* ✅ Pagination footer uses backend values */}
+      {users.length > 0 && (
+        <div className="mt-4 flex justify-between items-center">
+          <span className="text-sm text-gray-600">
+            Showing {(currentPage - 1) * rowsPerPage + 1} to{" "}
+            {Math.min(currentPage * rowsPerPage, totalItems)} of {totalItems} entries.
+          </span>
           <div className="flex gap-2">
-            <Button disabled={currentPage<=1} onClick={() => setCurrentPage(p=>p-1)}>Previous</Button>
-            <Button disabled={currentPage>=totalPages} onClick={() => setCurrentPage(p=>p+1)}>Next</Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage <= 1}
+              onClick={() => setCurrentPage(p => p - 1)}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage >= totalPages}
+              onClick={() => setCurrentPage(p => p + 1)}
+            >
+              Next
+            </Button>
           </div>
         </div>
       )}

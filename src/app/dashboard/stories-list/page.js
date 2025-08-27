@@ -32,18 +32,19 @@ export default function StoriesListPage() {
   const [categories, setCategories] = useState([]);
   const [partners, setPartners] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   // Filter states
   const [search, setSearch] = useState("");
   const [selectedProject, setSelectedProject] = useState("all");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedPartner, setSelectedPartner] = useState("all");
-  
+
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
-  
+  const [totalCount, setTotalCount] = useState(0); // 👈 added
+
   const [confirmDialog, setConfirmDialog] = useState({ 
     open: false, 
     storyId: null 
@@ -63,7 +64,6 @@ export default function StoriesListPage() {
         setCategories(categoriesRes.data.data || []);
         setPartners(partnersRes.data.data || []);
         
-        // Fetch initial stories without user association
         await fetchStories();
       } catch (error) {
         toast.error("Failed to load initial data");
@@ -72,9 +72,9 @@ export default function StoriesListPage() {
     };
 
     fetchData();
-  }, []);
+  }, [currentPage, rowsPerPage]); // 👈 refetch when page or rowsPerPage changes
 
-  // Modified fetchStories to work without user association
+  // Modified fetchStories
   const fetchStories = async () => {
     setIsLoading(true);
     try {
@@ -86,7 +86,6 @@ export default function StoriesListPage() {
         withCredentials: true
       });
       
-      // Transform data to match expected format
       const transformedStories = res.data.stories.map(story => ({
         ...story,
         users: story.user || { first_name: 'Unknown', last_name: 'User' }
@@ -94,36 +93,33 @@ export default function StoriesListPage() {
       
       setStories(transformedStories);
       setTotalPages(res.data.totalPages || 1);
+      setTotalCount(res.data.totalCount || 0); // 👈 save count
     } catch (error) {
       console.error("Error fetching stories:", error);
-      // Fallback to empty array if API fails
       setStories([]);
       setTotalPages(1);
+      setTotalCount(0);
     } finally {
       setIsLoading(false);
     }
   };
 
- const handleDelete = async (id) => {
-  try {
-    // Try DELETE method first
-    let response;
+  const handleDelete = async (id) => {
     try {
-      response = await axios.delete(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/deletestory`,
-        {
-          data: { id },
-          withCredentials: true,
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-    } catch (deleteError) {
-      console.log("DELETE method failed, trying POST...", deleteError);
-      
-      // If DELETE fails, try POST
+      let response;
       try {
+        response = await axios.delete(
+          `${process.env.NEXT_PUBLIC_BACKEND_URL}/deletestory`,
+          {
+            data: { id },
+            withCredentials: true,
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+      } catch (deleteError) {
+        console.log("DELETE method failed, trying POST...", deleteError);
         response = await axios.post(
           `${process.env.NEXT_PUBLIC_BACKEND_URL}/deletestory`,
           { id },
@@ -134,47 +130,34 @@ export default function StoriesListPage() {
             }
           }
         );
-      } catch (postError) {
-        console.log("POST method also failed", postError);
-        throw postError; // Re-throw to be caught by outer catch
       }
-    }
 
-    // Check response
-    if (response.data && response.data.message === "Story deleted successfully") {
-      toast.success("Story deleted successfully");
-      setStories(prev => prev.filter(story => story.id !== id));
-    } else {
-      throw new Error("Unexpected response from server");
-    }
-  } catch (error) {
-    console.error("Full delete error:", error);
-    console.error("Error response:", error.response);
-    
-    let errorMessage = "Failed to delete story";
-    
-    if (error.response) {
-      // Handle HTML error responses
-      if (typeof error.response.data === 'string' && error.response.data.includes('<!DOCTYPE html>')) {
-        errorMessage = "Server returned HTML error page";
-      } 
-      // Handle JSON error responses
-      else if (error.response.data.error) {
-        errorMessage = error.response.data.error;
-      } else if (error.response.data.message) {
-        errorMessage = error.response.data.message;
+      if (response.data && response.data.message === "Story deleted successfully") {
+        toast.success("Story deleted successfully");
+        setStories(prev => prev.filter(story => story.id !== id));
+        setTotalCount(prev => prev - 1); // 👈 adjust count
+      } else {
+        throw new Error("Unexpected response from server");
       }
-    } else if (error.message) {
-      errorMessage = error.message;
+    } catch (error) {
+      console.error("Delete error:", error);
+      let errorMessage = "Failed to delete story";
+      if (error.response?.data) {
+        if (typeof error.response.data === 'string' && error.response.data.includes('<!DOCTYPE html>')) {
+          errorMessage = "Server returned HTML error page";
+        } else {
+          errorMessage = error.response.data.error || error.response.data.message || errorMessage;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      toast.error(errorMessage);
+    } finally {
+      setConfirmDialog({ open: false, storyId: null });
     }
-    
-    toast.error(errorMessage);
-  } finally {
-    setConfirmDialog({ open: false, storyId: null });
-  }
-};
+  };
 
-  // Client-side filtering
+  // Client-side filtering (applies only to current page)
   const filteredStories = useMemo(() => {
     return stories.filter(story => {
       const matchesSearch = !search || 
@@ -205,7 +188,7 @@ export default function StoriesListPage() {
   };
 
   return (
-    <div className="">
+    <div>
       <h1 className="text-2xl font-bold mb-4">Stories and Updates</h1>
 
       <Link href="/dashboard/stories-list/add">
@@ -249,23 +232,18 @@ export default function StoriesListPage() {
           </div>
         </div>
 
+        {/* Filters */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-2">
             <Label>Project</Label>
-            <Select 
-              value={selectedProject} 
-              onValueChange={setSelectedProject}
-            >
+            <Select value={selectedProject} onValueChange={setSelectedProject}>
               <SelectTrigger>
                 <SelectValue placeholder="All Projects" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Projects</SelectItem>
                 {projects.map(project => (
-                  <SelectItem 
-                    key={project.id} 
-                    value={project.id.toString()}
-                  >
+                  <SelectItem key={project.id} value={project.id.toString()}>
                     {project.title}
                   </SelectItem>
                 ))}
@@ -275,20 +253,14 @@ export default function StoriesListPage() {
 
           <div className="space-y-2">
             <Label>Category</Label>
-            <Select 
-              value={selectedCategory} 
-              onValueChange={setSelectedCategory}
-            >
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
               <SelectTrigger>
                 <SelectValue placeholder="All Categories" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
                 {categories.map(category => (
-                  <SelectItem 
-                    key={category.id} 
-                    value={category.id.toString()}
-                  >
+                  <SelectItem key={category.id} value={category.id.toString()}>
                     {category.name}
                   </SelectItem>
                 ))}
@@ -298,20 +270,14 @@ export default function StoriesListPage() {
 
           <div className="space-y-2">
             <Label>Partner</Label>
-            <Select 
-              value={selectedPartner} 
-              onValueChange={setSelectedPartner}
-            >
+            <Select value={selectedPartner} onValueChange={setSelectedPartner}>
               <SelectTrigger>
                 <SelectValue placeholder="All Partners" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Partners</SelectItem>
                 {partners.map(partner => (
-                  <SelectItem 
-                    key={partner.id} 
-                    value={partner.id.toString()}
-                  >
+                  <SelectItem key={partner.id} value={partner.id.toString()}>
                     {partner.name}
                   </SelectItem>
                 ))}
@@ -415,8 +381,8 @@ export default function StoriesListPage() {
       <div className="flex justify-between items-center mt-4">
         <p className="text-sm text-gray-600">
           Showing {(currentPage - 1) * rowsPerPage + 1} to{" "}
-          {Math.min(currentPage * rowsPerPage, filteredStories.length)} of{" "}
-          {filteredStories.length} entries.
+          {Math.min(currentPage * rowsPerPage, totalCount)} of{" "}
+          {totalCount} entries.
         </p>
         <div className="flex gap-2">
           <Button

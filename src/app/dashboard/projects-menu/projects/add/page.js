@@ -12,11 +12,15 @@ import { toast } from 'sonner';
 import decodeHtml from '@/lib/decodeHtml';
 
 export default function AddProjectPage() {
-  const { register, handleSubmit, reset } = useForm();
+  const { register, handleSubmit, reset, watch, setValue } = useForm();
   const [initiatives, setInitiatives] = useState([]);
   const [mainImagePreview, setMainImagePreview] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
+  const [isSlugManualEdit, setIsSlugManualEdit] = useState(false);
 
+  // Watch the title field to auto-generate slug
+  const titleValue = watch('title');
+  
   useEffect(() => {
     async function fetchInitiatives() {
       try {
@@ -36,6 +40,21 @@ export default function AddProjectPage() {
 
     fetchInitiatives();
   }, []);
+
+  // Effect to auto-generate slug from title
+  useEffect(() => {
+    if (titleValue && !isSlugManualEdit) {
+      const generatedSlug = titleValue
+        .toLowerCase()
+        .trim()
+        .replace(/[^\w\s-]/g, '') // Remove special characters except hyphens
+        .replace(/\s+/g, '-') // Replace spaces with hyphens
+        .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+        .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
+      
+      setValue('slug', generatedSlug);
+    }
+  }, [titleValue, isSlugManualEdit, setValue]);
 
   const handleMainImagePreview = (e) => {
     const file = e.target.files?.[0];
@@ -72,6 +91,7 @@ export default function AddProjectPage() {
     formData.append('files', otherFile); // must match backend's multer field
 
     formData.append('title', formDataFromReactHookForm.title || '');
+    formData.append('slug', formDataFromReactHookForm.slug || '');
     formData.append('description', formDataFromReactHookForm.description || '');
     formData.append('videourl', formDataFromReactHookForm.videourl || '');
     formData.append('importance', formDataFromReactHookForm.importance || '');
@@ -88,6 +108,7 @@ export default function AddProjectPage() {
       reset();
       setMainImagePreview(null);
       setFilePreview(null);
+      setIsSlugManualEdit(false);
     } catch (error) {
       console.error(error?.response?.data || error.message);
       toast.error('Failed to create project');
@@ -102,6 +123,17 @@ export default function AddProjectPage() {
         <div>
           <Label htmlFor="title">Title</Label>
           <Input id="title" {...register('title')} required className="bg-white mt-1" />
+        </div>
+
+        <div>
+          <Label htmlFor="slug">Slug</Label>
+          <Input 
+            id="slug" 
+            {...register('slug')} 
+            required 
+            className="bg-white mt-1"
+            onChange={() => setIsSlugManualEdit(true)}
+          />
         </div>
 
         <div>
