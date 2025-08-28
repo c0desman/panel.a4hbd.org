@@ -264,7 +264,7 @@ const menuConfig = [
   {
     label: "Go to Website",
     icon: FileSymlink,
-    path: "https://a4hbd-org.vercel.app/",
+    path: "https://a4hbd.org/",
     external: true,
     roles: Object.values(USER_ROLES),
   },

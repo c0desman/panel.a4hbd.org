@@ -62,12 +62,18 @@ export default function ProjectsListPage() {
   const fetchProjects = async () => {
     try {
       const params = new URLSearchParams({
-        page: pagination.currentPage,
-        limit: pagination.pageSize,
-        search: search.trim() || " ", // <-- send a space if empty
+        page: pagination.currentPage.toString(),
+        limit: pagination.pageSize.toString(),
       });
 
-      if (selectedInitiative !== "all") params.append("initiative", selectedInitiative);
+      // Only add search parameter if there's actual content
+      if (search && search.trim()) {
+        params.append("search", search.trim());
+      }
+
+      if (selectedInitiative !== "all") {
+        params.append("initiative", selectedInitiative);
+      }
 
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_BACKEND_URL}/projects/search?${params.toString()}`,
@@ -91,7 +97,6 @@ export default function ProjectsListPage() {
       toast.error("Error fetching projects");
     }
   };
-
 
   // Fetch initiatives (for filter dropdown)
   const fetchInitiatives = async () => {
