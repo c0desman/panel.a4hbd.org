@@ -121,16 +121,28 @@ export default function AddProjectTypePage() {
           />
         </div>
 
-        {/* Short Description */}
+        {/* Short Description (supports HTML) */}
         <div>
-          <Label htmlFor="shortdescription">Short Description</Label>
-          <Textarea id="shortdescription" {...register('shortdescription')} rows={3} className="bg-white mt-1" />
+          <Label htmlFor="shortdescription">Short Description (supports HTML)</Label>
+          <Textarea 
+            id="shortdescription" 
+            {...register('shortdescription')} 
+            rows={3} 
+            className="bg-white mt-1" 
+            placeholder="You can use HTML tags like <b>bold</b> or <br>"
+          />
         </div>
 
-        {/* Long Description */}
+        {/* Long Description (supports HTML) */}
         <div>
-          <Label htmlFor="longdescription">Long Description</Label>
-          <Textarea id="longdescription" {...register('longdescription')} rows={4} className="bg-white mt-1" />
+          <Label htmlFor="longdescription">Long Description (supports HTML)</Label>
+          <Textarea 
+            id="longdescription" 
+            {...register('longdescription')} 
+            rows={4} 
+            className="bg-white mt-1"
+            placeholder="Supports HTML tags"
+          />
         </div>
 
         {/* Select Project */}

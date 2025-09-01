@@ -1,4 +1,3 @@
-// @/components/features/right-sidebar/PartnerSidebar.jsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -12,70 +11,40 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import axios from "axios";
 import { toast } from "sonner";
 
-export default function PartnerSidebar({
-  open,
-  partner,
-  actionType,
-  onClose,
-  onPartnerUpdate,
-  onPartnerAdd,
-}) {
-  const {
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    watch,
-    formState: { errors },
-  } = useForm();
-
+export default function PartnerSidebar({ open, partner, actionType, onClose, onPartnerUpdate, onPartnerAdd }) {
+  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm();
   const [previewImage, setPreviewImage] = useState("");
   const [selectedFile, setSelectedFile] = useState(null);
-
-  // Watch the name field for auto-slug generation
   const watchedName = watch("name");
 
-  /**
-   * Generate slug from name/title
-   * Converts: "IHHH Foundation" -> "ihhh-foundation"
-   * @param {string} name - The name/title to convert to slug
-   * @returns {string} - Generated slug
-   */
   const generateSlug = (name) => {
     if (!name) return "";
-    return name
-      .toLowerCase()
-      .trim()
-      .replace(/[^\w\s-]/g, '') // Remove special characters except hyphens
-      .replace(/\s+/g, '-') // Replace spaces with hyphens
-      .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
-      .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
+    return name.toLowerCase().trim()
+      .replace(/[^\w\s-]/g, '')  // remove special except hyphen
+      .replace(/\s+/g, '-')      // spaces → hyphen
+      .replace(/-+/g, '-')       // multiple hyphens → one
+      .replace(/^-|-$/g, '');    // trim hyphen
   };
 
   useEffect(() => {
     if (partner) {
       reset({
-        name: partner.name,
-        slug: partner.slug,
-        status: partner.status,
-        address: partner.address,
-        about: partner.about,
+        name: partner.name || "",
+        slug: partner.slug || "",
+        status: partner.status || "active",
+        address: partner.address || "",
+        about: partner.about || "",
       });
-      setPreviewImage(`${process.env.NEXT_PUBLIC_BACKEND_URL}/${partner.imagepath}`);
+      setPreviewImage(partner.imagepath ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/${partner.imagepath}` : "");
     } else {
       reset({ name: "", slug: "", status: "active", address: "", about: "" });
       setPreviewImage("");
     }
   }, [partner, open, reset]);
 
-  /**
-   * Auto-generate slug when name changes
-   * Only generates slug if current slug is empty or matches the previous auto-generated slug
-   */
   useEffect(() => {
-    if (watchedName && actionType !== 'view') {
-      const newSlug = generateSlug(watchedName);
-      setValue("slug", newSlug);
+    if (watchedName && actionType !== "view") {
+      setValue("slug", generateSlug(watchedName));
     }
   }, [watchedName, setValue, actionType]);
 
@@ -102,17 +71,13 @@ export default function PartnerSidebar({
         ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/editpartner`
         : `${process.env.NEXT_PUBLIC_BACKEND_URL}/createpartner`;
 
-      await axios.post(endpoint, formData, {
-        withCredentials: true,
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
+      await axios.post(endpoint, formData, { withCredentials: true, headers: { "Content-Type": "multipart/form-data" } });
 
       toast.success(`Partner ${partner ? "updated" : "created"} successfully`);
       partner ? onPartnerUpdate() : onPartnerAdd();
+      onClose();
     } catch (error) {
-      console.error("Form submit error:", error);
+      console.error(error);
       toast.error("Failed to submit partner");
     }
   };
@@ -123,48 +88,44 @@ export default function PartnerSidebar({
     <div className="fixed inset-y-0 right-0 w-full sm:max-w-md bg-white border-l shadow-xl z-50 overflow-auto">
       <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-100">
         <h2 className="text-lg font-semibold">
-          {actionType === 'view' ? 'Partner Details' : partner ? 'Edit Partner' : 'Add New Partner'}
+          {actionType === "view" ? "Partner Details" : partner ? "Edit Partner" : "Add New Partner"}
         </h2>
         <Button variant="ghost" size="icon" onClick={onClose}><X /></Button>
       </div>
 
       <form className="p-4 space-y-4" onSubmit={handleSubmit(onSubmit)}>
-        {actionType === 'view' ? (
+        {actionType === "view" ? (
           <>
-            <Label className='mb-2'>ID</Label><p>{partner?.id}</p>
-            <Label className='mb-2'>Image</Label>
-            {previewImage && <Image src={previewImage} alt="Preview" width={60} height={60} className="rounded" />}
-            <Label className='mb-2'>Name</Label><p>{partner?.name}</p>
-            <Label className='mb-2'>Slug</Label><p>{partner?.slug}</p>
-            <Label className='mb-2'>Status</Label><p>{partner?.status}</p>
-            <Label className='mb-2'>Address</Label><p>{partner?.address}</p>
-            <Label className='mb-2'>About</Label><p>{partner?.about}</p>
+            <Label>ID</Label><p>{partner?.id}</p>
+            <Label>Image</Label>{previewImage && <Image src={previewImage} alt="Preview" width={60} height={60} className="rounded" />}
+            <Label>Name</Label><p>{partner?.name}</p>
+            <Label>Slug</Label><p>{partner?.slug}</p>
+            <Label>Status</Label><p>{partner?.status}</p>
+            <Label>Address</Label><p>{partner?.address}</p>
+            <Label>About</Label><p>{partner?.about}</p>
           </>
         ) : (
           <>
             <div>
-              <Label className='mb-2'>Image</Label>
+              <Label>Image</Label>
               {previewImage && <Image src={previewImage} alt="Preview" width={60} height={60} className="rounded mb-2" />}
               <Input type="file" accept="image/*" onChange={handleImageChange} />
             </div>
 
             <div>
-              <Label className='mb-2'>Name</Label>
+              <Label>Name</Label>
               <Input {...register("name", { required: "Name is required" })} />
               {errors.name && <p className="text-red-500 text-sm">{errors.name.message}</p>}
             </div>
 
             <div>
-              <Label className='mb-2'>Slug</Label>
-              <Input 
-                {...register("slug", { required: "Slug is required" })} 
-                placeholder="Auto-generated from name (editable)"
-              />
+              <Label>Slug</Label>
+              <Input {...register("slug", { required: "Slug is required" })} placeholder="Auto-generated from name (editable)" />
               {errors.slug && <p className="text-red-500 text-sm">{errors.slug.message}</p>}
             </div>
 
             <div>
-              <Label className='mb-2'>Status</Label>
+              <Label>Status</Label>
               <Select onValueChange={(value) => setValue("status", value)} defaultValue="active">
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -175,22 +136,18 @@ export default function PartnerSidebar({
             </div>
 
             <div>
-              <Label className='mb-2'>Address</Label>
+              <Label>Address</Label>
               <Input {...register("address")} />
             </div>
 
             <div>
-              <Label className='mb-2'>About</Label>
+              <Label>About</Label>
               <textarea {...register("about")} className="w-full border rounded p-2" rows={4}></textarea>
             </div>
 
             <div className="flex gap-2 mt-4">
-              <Button type="submit" className="bg-green-600 text-white flex-1">
-                {partner ? "Save Changes" : "Add Partner"}
-              </Button>
-              <Button type="button" variant="outline" onClick={onClose} className="flex-1">
-                Cancel
-              </Button>
+              <Button type="submit" className="bg-green-600 text-white flex-1">{partner ? "Save Changes" : "Add Partner"}</Button>
+              <Button type="button" variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
             </div>
           </>
         )}

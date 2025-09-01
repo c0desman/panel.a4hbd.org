@@ -11,6 +11,8 @@ import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import decodeHtml from '@/lib/decodeHtml';
+import ImageSection from "@/components/features/ProjecttypeImageVideo/ImageSection";
+import VideoSection from "@/components/features/ProjecttypeImageVideo/VideoSection";
 
 export default function EditProjectTypePage() {
   const { register, handleSubmit, setValue, watch } = useForm();
@@ -157,7 +159,7 @@ export default function EditProjectTypePage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto py-10 px-4">
+    <div className="max-w-7xl mx-auto py-10 px-4">
       <h1 className="text-3xl font-bold mb-8">Edit Project Type</h1>
       <form onSubmit={handleSubmit((data, e) => onSubmit(data, e))} className="space-y-8">
 
@@ -173,16 +175,28 @@ export default function EditProjectTypePage() {
           <Input id="slug" {...register('slug')} required className="bg-white mt-1" />
         </div>
 
-        {/* Short Description */}
+        {/* Short Description (supports HTML) */}
         <div>
-          <Label htmlFor="shortdescription">Short Description</Label>
-          <Textarea id="shortdescription" {...register('shortdescription')} rows={3} className="bg-white mt-1" />
+          <Label htmlFor="shortdescription">Short Description (supports HTML)</Label>
+          <Textarea 
+            id="shortdescription" 
+            {...register('shortdescription')} 
+            rows={3} 
+            className="bg-white mt-1" 
+            placeholder="You can use HTML tags like <b>bold</b> or <br>"
+          />
         </div>
 
-        {/* Long Description */}
+        {/* Long Description (supports HTML) */}
         <div>
-          <Label htmlFor="longdescription">Long Description</Label>
-          <Textarea id="longdescription" {...register('longdescription')} rows={4} className="bg-white mt-1" />
+          <Label htmlFor="longdescription">Long Description (supports HTML)</Label>
+          <Textarea 
+            id="longdescription" 
+            {...register('longdescription')} 
+            rows={4} 
+            className="bg-white mt-1"
+            placeholder="Supports HTML tags"
+          />
         </div>
 
         {/* Select Project */}
@@ -256,6 +270,8 @@ export default function EditProjectTypePage() {
         </div>
 
       </form>
+      <ImageSection projectTypeId={Number(searchParams.get("id"))} />
+      <VideoSection projectTypeId={Number(searchParams.get("id"))} />
     </div>
   );
 }

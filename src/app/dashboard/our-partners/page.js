@@ -30,11 +30,10 @@ export default function PartnersPage() {
           page: pagination.currentPage,
           limit: pagination.pageSize,
           status: statusFilter !== "all" ? statusFilter : undefined,
-          search: searchTerm.trim() || undefined, // if backend supports search
+          search: searchTerm.trim() || undefined,
         },
         withCredentials: true,
       });
-
       setPartners(res.data.data || []);
       setPagination(res.data.pagination || { totalItems: 0, totalPages: 1, currentPage: 1, pageSize: 10 });
     } catch (err) {
@@ -43,14 +42,11 @@ export default function PartnersPage() {
     }
   };
 
-  useEffect(() => {
-    fetchPartners();
-  }, [pagination.currentPage, pagination.pageSize, statusFilter]);
+  useEffect(() => { fetchPartners(); }, [pagination.currentPage, pagination.pageSize, statusFilter]);
 
-  // debounce search
   useEffect(() => {
     const delay = setTimeout(() => {
-      setPagination((prev) => ({ ...prev, currentPage: 1 }));
+      setPagination(prev => ({ ...prev, currentPage: 1 }));
       fetchPartners();
     }, 400);
     return () => clearTimeout(delay);
@@ -90,11 +86,7 @@ export default function PartnersPage() {
 
       <Button
         className="bg-green-600 text-white mb-3"
-        onClick={() => {
-          setSelectedPartner(null);
-          setActionType("add");
-          setShowSidebar(true);
-        }}
+        onClick={() => { setSelectedPartner(null); setActionType("add"); setShowSidebar(true); }}
       >
         Add New Partner
       </Button>
@@ -124,7 +116,7 @@ export default function PartnersPage() {
           <Select
             value={String(pagination.pageSize)}
             onValueChange={(value) =>
-              setPagination((prev) => ({ ...prev, pageSize: Number(value), currentPage: 1 }))
+              setPagination(prev => ({ ...prev, pageSize: Number(value), currentPage: 1 }))
             }
           >
             <SelectTrigger className="w-[100px]">
@@ -132,9 +124,7 @@ export default function PartnersPage() {
             </SelectTrigger>
             <SelectContent>
               {[10, 50, 100, 500].map((value) => (
-                <SelectItem key={value} value={String(value)}>
-                  {value}
-                </SelectItem>
+                <SelectItem key={value} value={String(value)}>{value}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -170,67 +160,44 @@ export default function PartnersPage() {
                   <td className="p-3">{partner.name}</td>
                   <td className="p-3">{partner.slug}</td>
                   <td className="p-3">
-                    <span
-                      className={`px-2 py-1 rounded ${
-                        partner.status === "active"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-red-100 text-red-800"
-                      }`}
-                    >
+                    <span className={`px-2 py-1 rounded ${partner.status === "active" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
                       {partner.status}
                     </span>
                   </td>
                   <td className="p-3 flex gap-2">
-                    <Button size="icon" variant="ghost" onClick={() => handleAction(partner, "view")}>
-                      <Eye className="w-4 h-4" />
-                    </Button>
-                    <Button size="icon" variant="ghost" onClick={() => handleAction(partner, "edit")}>
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    <Button size="icon" variant="ghost" onClick={() => handleDeletePrompt(partner.id)}>
-                      <Trash2 className="w-4 h-4 text-red-600" />
-                    </Button>
+                    <Button size="icon" variant="ghost" onClick={() => handleAction(partner, "view")}><Eye className="w-4 h-4" /></Button>
+                    <Button size="icon" variant="ghost" onClick={() => handleAction(partner, "edit")}><Pencil className="w-4 h-4" /></Button>
+                    <Button size="icon" variant="ghost" onClick={() => handleDeletePrompt(partner.id)}><Trash2 className="w-4 h-4 text-red-600" /></Button>
                   </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={6} className="text-center p-4 text-gray-500">
-                  No partners found.
-                </td>
+                <td colSpan={6} className="text-center p-4 text-gray-500">No partners found.</td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
 
-      {/* ✅ Fixed footer with correct counts */}
       {partners.length > 0 && (
         <div className="mt-4 flex justify-between items-center">
           <span>
             Showing {(pagination.currentPage - 1) * pagination.pageSize + 1}–
-            {Math.min(pagination.currentPage * pagination.pageSize, pagination.totalItems)} of{" "}
-            {pagination.totalItems} entries
+            {Math.min(pagination.currentPage * pagination.pageSize, pagination.totalItems)} of {pagination.totalItems} entries
           </span>
           <div className="flex gap-2">
             <Button
               variant="outline"
-              onClick={() =>
-                setPagination((prev) => ({ ...prev, currentPage: Math.max(1, prev.currentPage - 1) }))
-              }
+              onClick={() => setPagination(prev => ({ ...prev, currentPage: Math.max(1, prev.currentPage - 1) }))}
               disabled={pagination.currentPage === 1}
             >
               Previous
             </Button>
             <Button
               variant="outline"
-              onClick={() =>
-                setPagination((prev) => ({
-                  ...prev,
-                  currentPage: Math.min(prev.totalPages, prev.currentPage + 1),
-                }))
-              }
-              disabled={pagination.currentPage >= pagination.totalPages}
+              onClick={() => setPagination(prev => ({ ...prev, currentPage: Math.min(prev.totalPages, prev.currentPage + 1) }))}
+              disabled={pagination.currentPage === pagination.totalPages}
             >
               Next
             </Button>
@@ -238,23 +205,26 @@ export default function PartnersPage() {
         </div>
       )}
 
-      <PartnerSidebar
-        open={showSidebar}
-        partner={selectedPartner}
-        actionType={actionType}
-        onClose={() => setShowSidebar(false)}
-        onPartnerUpdate={fetchPartners}
-        onPartnerAdd={fetchPartners}
-      />
+      {showSidebar && (
+        <PartnerSidebar
+          open={showSidebar}
+          partner={selectedPartner}
+          actionType={actionType}
+          onClose={() => setShowSidebar(false)}
+          onPartnerAdd={fetchPartners}
+          onPartnerUpdate={fetchPartners}
+        />
+      )}
 
-      <ConfirmDialog
-        open={deleteDialogOpen}
-        onClose={() => setDeleteDialogOpen(false)}
-        onConfirm={confirmDelete}
-        title="Delete Partner"
-        description="Are you sure you want to delete this partner? This action cannot be undone."
-        confirmText="Yes, Delete"
-      />
+      {deleteDialogOpen && (
+        <ConfirmDialog
+          open={deleteDialogOpen}
+          title="Delete Partner"
+          message="Are you sure you want to delete this partner?"
+          onConfirm={confirmDelete}
+          onCancel={() => setDeleteDialogOpen(false)}
+        />
+      )}
     </div>
   );
 }

@@ -9,7 +9,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
 import { toast } from 'sonner';
-import decodeHtml from '@/lib/decodeHtml';
 
 export default function AddProjectPage() {
   const { register, handleSubmit, reset, watch, setValue } = useForm();
@@ -24,33 +23,25 @@ export default function AddProjectPage() {
   useEffect(() => {
     async function fetchInitiatives() {
       try {
-        const res = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/allinitiative`, {
-          withCredentials: true,
-        });
-        const decodedInitiatives = (res.data.data || []).map((item) => ({
-          ...item,
-          name: decodeHtml(item.name),
-        }));
-        setInitiatives(decodedInitiatives);
+        const res = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/allinitiative`, { withCredentials: true });
+        setInitiatives(res.data.data || []);
       } catch (err) {
         toast.error('Failed to load initiatives');
         console.error(err);
       }
     }
-
     fetchInitiatives();
   }, []);
 
-  // Effect to auto-generate slug from title
   useEffect(() => {
     if (titleValue && !isSlugManualEdit) {
       const generatedSlug = titleValue
         .toLowerCase()
         .trim()
-        .replace(/[^\w\s-]/g, '') // Remove special characters except hyphens
-        .replace(/\s+/g, '-') // Replace spaces with hyphens
-        .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
-        .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
+        .replace(/[^\w\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
       
       setValue('slug', generatedSlug);
     }
@@ -76,8 +67,8 @@ export default function AddProjectPage() {
     }
   };
 
-  const onSubmit = async (formDataFromReactHookForm, e) => {
-    e.preventDefault(); // prevent default form action
+  const onSubmit = async (data, e) => {
+    e.preventDefault();
 
     const formData = new FormData();
 
@@ -87,16 +78,17 @@ export default function AddProjectPage() {
     if (!mainFile) return toast.error("Main image is required.");
     if (!otherFile) return toast.error("Other file is required.");
 
-    formData.append('main', mainFile);   // must match backend's multer field
-    formData.append('files', otherFile); // must match backend's multer field
+    formData.append('main', mainFile);
+    formData.append('files', otherFile);
 
-    formData.append('title', formDataFromReactHookForm.title || '');
-    formData.append('slug', formDataFromReactHookForm.slug || '');
-    formData.append('description', formDataFromReactHookForm.description || '');
-    formData.append('videourl', formDataFromReactHookForm.videourl || '');
-    formData.append('importance', formDataFromReactHookForm.importance || '');
-    formData.append('whatwedo', formDataFromReactHookForm.whatwedo || '');
-    formData.append('initiativeid', formDataFromReactHookForm.initiativeid || '');
+    // Append raw HTML from textareas
+    formData.append('title', data.title || '');
+    formData.append('slug', data.slug || '');
+    formData.append('description', data.description || ''); // <-- raw HTML
+    formData.append('importance', data.importance || '');   // <-- raw HTML
+    formData.append('whatwedo', data.whatwedo || '');       // <-- raw HTML
+    formData.append('videourl', data.videourl || '');
+    formData.append('initiativeid', data.initiativeid || '');
 
     try {
       await axios.post(`${process.env.NEXT_PUBLIC_BACKEND_URL}/createproject`, formData, {
@@ -118,7 +110,7 @@ export default function AddProjectPage() {
   return (
     <div className="max-w-4xl mx-auto py-10 px-4">
       <h1 className="text-3xl font-bold mb-8">Create New Project</h1>
-      <form onSubmit={handleSubmit((data, e) => onSubmit(data, e))} className="space-y-8">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
 
         <div>
           <Label htmlFor="title">Title</Label>
@@ -137,23 +129,14 @@ export default function AddProjectPage() {
         </div>
 
         <div>
-          <Label htmlFor="description">Description</Label>
+          <Label htmlFor="description">Description (supports HTML tags)</Label>
           <Textarea id="description" {...register('description')} rows={4} required className="bg-white mt-1" />
         </div>
 
         <div>
           <Label htmlFor="main">Main Image</Label>
-          <Input 
-            type="file" 
-            id="main" 
-            name="main"
-            accept="image/*" 
-            onChange={handleMainImagePreview}
-            className="bg-white mt-1" 
-          />
-          {mainImagePreview && (
-            <Image src={mainImagePreview} alt="Main Preview" width={400} height={250} className="mt-3 rounded object-cover" />
-          )}
+          <Input type="file" id="main" name="main" accept="image/*" onChange={handleMainImagePreview} className="bg-white mt-1" />
+          {mainImagePreview && <Image src={mainImagePreview} alt="Main Preview" width={400} height={250} className="mt-3 rounded object-cover" />}
         </div>
 
         <div>
@@ -162,39 +145,26 @@ export default function AddProjectPage() {
         </div>
 
         <div>
-          <Label htmlFor="importance">Importance</Label>
+          <Label htmlFor="importance">Importance (supports HTML tags)</Label>
           <Textarea id="importance" {...register('importance')} rows={3} className="bg-white mt-1" />
         </div>
 
         <div>
-          <Label htmlFor="whatwedo">What We Do</Label>
+          <Label htmlFor="whatwedo">What We Do (supports HTML tags)</Label>
           <Textarea id="whatwedo" {...register('whatwedo')} rows={3} className="bg-white mt-1" />
         </div>
 
         <div>
           <Label htmlFor="files">Upload File (Image/Video)</Label>
-          <Input 
-            type="file" 
-            id="files" 
-            name="files"
-            accept="image/*,video/*" 
-            onChange={handleFilePreview}
-            className="bg-white mt-1" 
-          />
-          {filePreview && (
-            <Image src={filePreview} alt="Media Preview" width={400} height={250} className="mt-3 rounded object-cover" />
-          )}
+          <Input type="file" id="files" name="files" accept="image/*,video/*" onChange={handleFilePreview} className="bg-white mt-1" />
+          {filePreview && <Image src={filePreview} alt="Media Preview" width={400} height={250} className="mt-3 rounded object-cover" />}
         </div>
 
         <div>
           <Label htmlFor="initiativeid">Select Initiative</Label>
           <select id="initiativeid" {...register('initiativeid')} required className="bg-white mt-1 px-3 py-2 border rounded w-full">
             <option value="">-- Select Initiative --</option>
-            {initiatives.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
+            {initiatives.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
           </select>
         </div>
 
