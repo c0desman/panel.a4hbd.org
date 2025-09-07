@@ -1,3 +1,4 @@
+//src/app/dashboard/stories-list/add/page.js
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -218,7 +219,7 @@ export default function AddStoryPage() {
           <Label>Content</Label>
           <Textarea
             {...register('content', { required: true })}
-            placeholder="Write the story here..."
+            placeholder="Write the story here... (HTML tags like <b>, <br> are supported)"
             rows={8}
             className="bg-white"
           />

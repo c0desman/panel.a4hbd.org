@@ -243,7 +243,12 @@ export default function EditStoryPage() {
         {/* Content */}
         <div>
           <Label>Content</Label>
-          <Textarea {...register('content')} rows={6} className="bg-white mt-1" />
+          <Textarea
+            {...register('content')}
+            placeholder="Write the story here... (HTML tags like <b>, <br>, <i> are supported)"
+            rows={8}
+            className="bg-white mt-1 font-mono"
+          />
         </div>
 
         {/* SEO Section */}
